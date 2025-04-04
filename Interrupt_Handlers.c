@@ -16,6 +16,6 @@ void __attribute__((interrupt)) EIC_EXTINT_2_Handler(void){
 void __attribute__((interrupt)) EIC_EXTINT_3_Handler(void){
     EICClearFlag(EIC3);
 }
-void __attribute__((interrupt)) SERCOM0_0_Handler(void){
+/*void __attribute__((interrupt)) SERCOM0_0_Handler(void){
     
-}
+}*/

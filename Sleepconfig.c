@@ -3,7 +3,6 @@
 #include "SPI_Methods.h"
 #include "TC1_Methods.h"
 #include "UART_Methods.h"
-#include "Timer0_Methods.h"
 void EnterDeepSleep(void){
     ConfigSleep(STANDBY);
     //I just noticed the inconsistency of my naming scheme

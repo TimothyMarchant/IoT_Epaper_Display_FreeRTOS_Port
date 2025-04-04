@@ -3,7 +3,6 @@
 #include "definitions.h"
 #include "SPI_Methods.h"
 #include "GPIO.h"
-#include "Timer0_Methods.h"
 #include "UART_Methods.h"
 #include <FreeRTOS.h>
 #include <task.h>
