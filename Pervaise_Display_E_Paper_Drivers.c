@@ -13,6 +13,7 @@
 #define UART SERCOM1_REGS->USART_INT
 #define SPI SERCOM0_REGS->SPIM
 #define RXC 0x04
+#ifndef EpaperMacros
 //outputs
 #define DC PORT_PA15
 #define RES PORT_PA08
@@ -27,6 +28,12 @@
 #define DTM1REG 0x24
 #define DTM2REG 0x26
 #define UpdateDisplay 0x20
+#define RoomTemperature 0x14
+#endif
+#ifndef SPIShorthand
+#define Write(data) SPI_Enqueue(data) 
+#define SPIWait SPI_Wait_For_Last_Byte()
+#endif
 //image size in bytes
 unsigned short imagelength=5000;
 unsigned short currentcount=0;
@@ -81,55 +88,53 @@ void Init_Epaper_IO(void){
 //send a command
 void sendcommand(unsigned char CMD){
     pinwrite(DC,LOW);
-    SPI_Write_Blocking(CMD);
+    Write(CMD);
     pinwrite(DC,HIGH);
 }
 //Pervaise Displays wants you to stop powering the screen once you are done writing to it, so this would be called more than once.
 //However for this project we will skip that for now.
 void Init_Screen(void){
-    delay(30);
+    delay(5);
     configpin(RES,Output);
     pinwrite(RES,HIGH);
-    delay(25);
+    delay(10);
     pinwrite(RES,LOW);
-    delay(25);
+    delay(10);
     pinwrite(RES,HIGH);
-    delay(35);
+    delay(10);
     //wait for busy to go LOW
-    while (pinread(Busy,14)>=1);
-    pinwrite(DC,LOW);
-    SPI_Start_Unknown_Packet(CS);
-    SPI_Write_Blocking(Softreset);
-    pinwrite(DC,HIGH);
-    SPI_End(CS);
-    while (pinread(Busy,14)>=1);
-    SPI_Start_Unknown_Packet(CS);
+    while (pinread(Busy,14));
+    SPI_Begin(CS,1);
+    sendcommand(Softreset);
+    SPIWait;
+    while (pinread(Busy,14));
+    SPI_Begin(CS,4);
     sendcommand(TemperatureREG);
     //temperature
-    SPI_Write_Blocking(0x14);
+    Write(RoomTemperature);
     sendcommand(PanelSetting);
-    SPI_Write_Blocking(PanelSettingData);
-    SPI_End(CS);
+    Write(PanelSettingData);
+    SPIWait;
 }
 //testing purposes
 void testsendbuffer(void){
-    SPI_Start_Unknown_Packet(CS);
+    SPI_Begin(CS,5001);
     sendcommand(DTM1REG);
     for (unsigned short i=0;i<5000;i++){
-        SPI_Write_Blocking(0x00);
+        Write(0x00);
     }
-    SPI_End(CS);
-    SPI_Start_Unknown_Packet(CS);
+    SPIWait;
+    SPI_Begin(CS,5001);
     sendcommand(DTM2REG);
     for (unsigned short i=0;i<5000;i++){
-        SPI_Write_Blocking(0x00);
+        Write(0x00);
     }
-    SPI_End(CS);
+    SPIWait;
     //update display
     while(pinread(Busy,14));
-    SPI_Start_Unknown_Packet(CS);
-    sendcommand(0x20);
-    SPI_End(CS);
+    SPI_Begin(CS,1);
+    sendcommand(UpdateDisplay);
+    SPIWait;
     while(pinread(Busy,14));
 }
 //send necessary data to update screen

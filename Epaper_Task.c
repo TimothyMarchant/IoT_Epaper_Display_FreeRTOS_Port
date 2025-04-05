@@ -8,8 +8,9 @@
 #include <semphr.h>
 #include "UART_Methods.h"
 #include "SPI_Methods.h"
-void UART_task(void * pvParameters){
-    vTaskSuspend(NULL);
+#include "EPaper_Methods.h"
+void Epaper_Task(void * pvParameters){
+    
     while (1){
         
     }

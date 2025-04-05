@@ -17,14 +17,20 @@
 #include "EIC_Methods.h"
 #include "SPI_Methods.h"
 #include "UART_Methods.h"
+#include "EPaper_Methods.h"
 /*
  * 
  */
 void (* functptr)(void);
-void Init_Epaper_IO(void);
-void testscreen(void);
 void updatescreen(void);
+void UART_task(void*);
+void SPI_task(void*);
 SemaphoreHandle_t semaphore;
+SemaphoreHandle_t SPIFinished;
+extern SemaphoreHandle_t SPIready;
+QueueHandle_t SPI_Queue;
+TaskHandle_t SPITask;
+TaskHandle_t UARTTask;
 void EIC0_Callback(void){
     functptr=&testscreen;
     BaseType_t higherprioritytask=pdFALSE;
@@ -49,6 +55,7 @@ void SetupHardware(void){
     EnableSPI();
 }
 void maintask(void * pvParameters){
+    //BaseType_t freesize=
     while (1){
         xSemaphoreTake(semaphore,portMAX_DELAY);
         functptr();
@@ -57,7 +64,13 @@ void maintask(void * pvParameters){
 int main(void) {
     SetupHardware();
     semaphore=xSemaphoreCreateBinary();
-    xTaskCreate(maintask,"Main task",128,NULL,1,NULL);
+    SPIFinished=xSemaphoreCreateBinary();
+    SPIready=xSemaphoreCreateBinary();
+    //create byte queue
+    SPI_Queue=xQueueCreate(3,sizeof(unsigned char));
+    xTaskCreate(UART_task,"UART task",32,NULL,1,&UARTTask);
+    xTaskCreate(SPI_task,"SPI task",50,NULL,3,&SPITask);
+    xTaskCreate(maintask,"Main task",100,NULL,2,NULL);
     vTaskStartScheduler();
     while (1){
         pinwrite(PORT_PA03,LOW);

@@ -2,6 +2,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "definitions.h"
+#include <FreeRTOS.h>
+#include <task.h>
+#include <queue.h>
+#include <timers.h>
+#include <semphr.h>
 #include "GPIO.h"
 //SERCOM0 SPIM
 #define SPI SERCOM0_REGS->SPIM
@@ -15,38 +20,15 @@
 #define CTRLARegisterMask 0x1030008C
 #define Success 1
 #define Failure 0
-volatile unsigned char databuffer = 0x00;
-volatile unsigned short packetlength = 0;
-volatile unsigned short packetpointer = 0;
-volatile unsigned char* Packet;
-volatile unsigned char Repeatedsendmode = 0;
-volatile unsigned int currentCS = 0;
+extern QueueHandle_t SPI_Queue;
+extern TaskHandle_t SPITask;
+extern SemaphoreHandle_t SPIFinished;
+void SetPacketlength(unsigned short);
+void SetCS(const unsigned int CSpin);
 static inline void Disableinterrupts(void);
 #define PA PORT_REGS->GROUP[0]
 //void SPI_Queue_Callback(void);
 volatile void SPI_End( volatile unsigned int pin);
-//void SPI_Queue_Callback();
-
-void __attribute__((interrupt)) SERCOM0_0_Handler(void) {
-    if (SPI.SERCOM_INTFLAG & DRE) {
-        if (!Repeatedsendmode) {
-            //clears interrupt flag
-            DataREG = (*(Packet + packetpointer));
-
-        } 
-        //for repeated sending.  There are a few use cases for this
-        else {
-            DataREG = *Packet;
-        }
-        packetpointer++;
-    }
-    //end SPI
-    if (packetpointer == packetlength) {
-        //blocking wait for last byte; should be very short
-        while (!(SPI.SERCOM_INTFLAG & DRE));
-        SPI_End(currentCS);
-    }
-}
 
 void InitSPI(const unsigned char baudrate) {
     //using SSOP24 package.  Enable pins for SERCOM0
@@ -63,7 +45,7 @@ void InitSPI(const unsigned char baudrate) {
     SPI.SERCOM_BAUD = baudrate;
     SPI.SERCOM_CTRLB = CTRLBRegisterSettings;
     SPI.SERCOM_CTRLA = CTRLARegisterMask;
-    NVIC_SetPriority(SERCOM0_0_IRQn, 3);
+    NVIC_SetPriority(SERCOM0_1_IRQn, 3);
 
 }
 
@@ -76,41 +58,41 @@ void DisableSPI(void) {
 }
 //called by the same function, so use inline (supposedly the compiler should optimize)
 static inline void Enableinterrupts(void) {
-    SPI.SERCOM_INTENSET |= DRE;
-    NVIC_EnableIRQ(SERCOM0_0_IRQn);
+    SPI.SERCOM_INTENSET = Transmit_Complete;
+    NVIC_EnableIRQ(SERCOM0_1_IRQn);
 }
-
 static inline void Disableinterrupts(void) {
-    SPI.SERCOM_INTENCLR |= DRE;
-    NVIC_DisableIRQ(SERCOM0_0_IRQn);
+    SPI.SERCOM_INTENCLR =Transmit_Complete;
+    NVIC_DisableIRQ(SERCOM0_1_IRQn);
 }
-
-volatile void SPI_Start(const volatile unsigned char pin, const volatile unsigned short length, unsigned char* givenPacket) {
-    pinwrite(pin, LOW);
-    currentCS = pin;
-    packetlength = length;
-    Packet = givenPacket;
+void SPI_Begin(const unsigned int CS,const volatile unsigned short length){
+    pinwrite(CS,LOW);
+    SetPacketlength(length);
+    SetCS(CS);
     Enableinterrupts();
+    vTaskResume(SPITask);
+}
+//enqueue a byte
+void SPI_Enqueue(unsigned char data){
+    //wait at most 100 ms
+    xQueueSendToBack(SPI_Queue,&data,portMAX_DELAY);
+}
+void SPI_Write(unsigned char data){
+    SPI.SERCOM_DATA=data;
+}
+//wait for last byte to transfer.
+void SPI_Wait_For_Last_Byte(void){
+    //wait at most 100ms for spi to finish transfering last byte.  We should never get a timeout, but its here just in case
+    xSemaphoreTake(SPIFinished,portMAX_DELAY);
 }
 //for packets of unknown length, or sending packets of very small length.  Use blocking write function (mainly meant for when I don't care enough to define packets)
 void SPI_Start_Unknown_Packet(const volatile unsigned int pin) {
-    currentCS = pin;
     pinwrite(pin, LOW);
 }
-//For writing the same value repeatedly. There is a legitimate use case for this which will be seen shortly
-void SPI_Start_Repeated(const volatile unsigned char pin, const volatile unsigned short length, unsigned char data) {
-    Repeatedsendmode = 1;
-    SPI_Start(pin, length, &data);
-}
-//We are done transferring use regardless of which start method was chosen
+//end communication, task suspends itself.
 volatile void SPI_End(volatile unsigned int pin) {
     pinwrite(pin, HIGH);
     Disableinterrupts();
-    currentCS = 0x00;
-    //reset everything
-    Repeatedsendmode = 0;
-    packetpointer = 0;
-    packetlength = 0;
 }
 //this write method uses a blocking loop until we can write again.  For testing purposes mostly or small amount of writes
 
@@ -118,14 +100,4 @@ void SPI_Write_Blocking(unsigned char data) {
     while (!(SPI.SERCOM_INTFLAG & DRE));
     SPI.SERCOM_DATA = data;
     while (!(SPI.SERCOM_INTFLAG & DRE));
-}
-void ChangetoLSB(void){
-    DisableSPI();
-    SPI.SERCOM_CTRLA|=0x40000000;
-    EnableSPI();
-}
-void ChangetoMSB(void){
-    DisableSPI();
-    SPI.SERCOM_CTRLA&=~(0x40000000);
-    EnableSPI();
 }
