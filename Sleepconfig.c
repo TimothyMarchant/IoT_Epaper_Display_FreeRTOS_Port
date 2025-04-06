@@ -8,12 +8,12 @@ void EnterDeepSleep(void){
     //I just noticed the inconsistency of my naming scheme
     Enable_EIC();
     DisableSPI();
-    EndUART();
+    DisableUART();
 }
 void ExitDeepSleep(void){
     ConfigSleep(IDLE);
     //don't want to be interrupted with push buttons after pressing one
     Disable_EIC();
     EnableSPI();
-    StartUART();
+    EnableUART();
 }

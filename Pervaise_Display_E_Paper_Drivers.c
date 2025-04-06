@@ -34,46 +34,10 @@
 #define Write(data) SPI_Enqueue(data) 
 #define SPIWait SPI_Wait_For_Last_Byte()
 #endif
-//image size in bytes
-unsigned short imagelength=5000;
-unsigned short currentcount=0;
-unsigned char currentpacketlengthptr=0;
-//TCP packet lengths we know in advanced.  These will not change as the image size is 5000 bytes
-unsigned short packetlengths[4]={1460,1460,1460,620};
-unsigned short packetlengthcount=0;
-unsigned char isImagedata=0;
-unsigned char i=0;
 void TestSend(void);
 //this is to write image data; this is not the most optimal way to write this, but this is just to test things.
 //message format is +IPD,<LENGTH>:<DATA> where LENGTH<=1460
 void EpaperReadWrite_UART_Callback(unsigned char data){
-    if (!isImagedata){
-        //this is how the ESP sends data back something, length and finally : afterwards is all data.
-        if (data==':'){
-            isImagedata=1;
-        }
-        return;
-    }
-        //Normally I would have a blocking loop here, but since our UART perhiperial transfers so slowly it's strictly unnecessary (since our SPI speed is pretty fast in comparison)
-        //while (!(SPI.SERCOM_INTFLAG&0x01));
-        SPI.SERCOM_DATA = data;
-        packetlengthcount++;
-        //if this is true do not send more data until the original conditional is satisfied again.
-        if (packetlengthcount==packetlengths[i]){
-            i++;
-            packetlengthcount=0;
-            isImagedata=0;
-        }
-        currentcount++;
-        //disable interrupt and stop transmission
-        if (currentcount==imagelength){
-            UART.SERCOM_INTENCLR=RXC;
-            SPI_End(CS);
-            i=0;
-            currentcount=0;
-        }
-        return;
-    
 }
 //only called once
 void Init_Epaper_IO(void){
@@ -140,21 +104,21 @@ void testsendbuffer(void){
 //send necessary data to update screen
 void updatescreen(void){
     Init_Screen();
-    SPI_Start_Unknown_Packet(CS);
+    SPI_Begin(CS,5001);
     sendcommand(DTM1REG);
     TestSend();
-    SPI_End(CS);
-    SPI_Start_Unknown_Packet(CS);
+    SPIWait;
+    SPI_Begin(CS,5001);
     sendcommand(DTM2REG);
     for (unsigned short i=0;i<5000;i++){
-        SPI_Write_Blocking(0x00);
+        Write(0x00);
     }
-    SPI_End(CS);
+    SPIWait;
     //update display
     while(pinread(Busy,14));
-    SPI_Start_Unknown_Packet(CS);
-    sendcommand(0x20);
-    SPI_End(CS);
+    SPI_Begin(CS,2);
+    sendcommand(UpdateDisplay);
+    SPIWait;
     while(pinread(Busy,14));
 }
 //For testing purposes

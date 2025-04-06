@@ -11,7 +11,7 @@
 //can be modified by other tasks
 static volatile unsigned short packetlength=0;
 static volatile unsigned int CS=0x00;
-SemaphoreHandle_t SPIready;
+extern SemaphoreHandle_t SPIready;
 extern SemaphoreHandle_t SPIFinished;
 extern QueueHandle_t SPI_Queue;
 //call these from SPI_Begin.

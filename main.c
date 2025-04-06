@@ -18,6 +18,7 @@
 #include "SPI_Methods.h"
 #include "UART_Methods.h"
 #include "EPaper_Methods.h"
+#include "CPUconfig.h"
 /*
  * 
  */
@@ -27,8 +28,14 @@ void UART_task(void*);
 void SPI_task(void*);
 SemaphoreHandle_t semaphore;
 SemaphoreHandle_t SPIFinished;
-extern SemaphoreHandle_t SPIready;
+SemaphoreHandle_t TXready;
+SemaphoreHandle_t RXready;
+SemaphoreHandle_t UARTFinished;
+SemaphoreHandle_t SPIready;
 QueueHandle_t SPI_Queue;
+QueueHandle_t UART_Transmit_Queue;
+//generic UART receiver queue
+QueueHandle_t UART_Receive_Queue;
 TaskHandle_t SPITask;
 TaskHandle_t UARTTask;
 void EIC0_Callback(void){
@@ -44,6 +51,7 @@ void EIC1_Callback(void){
     portYIELD_FROM_ISR(higherprioritytask);
 }
 void SetupHardware(void){
+    //configCPUspeed(Sixteen_MHz);
     Init_IO();
     Init_Epaper_IO();
     Init_EIC(EIC0,0);
@@ -66,11 +74,16 @@ int main(void) {
     semaphore=xSemaphoreCreateBinary();
     SPIFinished=xSemaphoreCreateBinary();
     SPIready=xSemaphoreCreateBinary();
+    TXready=xSemaphoreCreateBinary();
+    RXready=xSemaphoreCreateBinary();
+    UARTFinished=xSemaphoreCreateBinary();
     //create byte queue
-    SPI_Queue=xQueueCreate(3,sizeof(unsigned char));
-    xTaskCreate(UART_task,"UART task",32,NULL,1,&UARTTask);
+    UART_Transmit_Queue=xQueueCreate(5,sizeof(unsigned char));
+    UART_Receive_Queue=xQueueCreate(20,sizeof(unsigned char));
+    SPI_Queue=xQueueCreate(5,sizeof(unsigned char));
+    xTaskCreate(UART_task,"UART task",60,NULL,1,&UARTTask);
     xTaskCreate(SPI_task,"SPI task",50,NULL,3,&SPITask);
-    xTaskCreate(maintask,"Main task",100,NULL,2,NULL);
+    xTaskCreate(maintask,"Main task",128,NULL,2,NULL);
     vTaskStartScheduler();
     while (1){
         pinwrite(PORT_PA03,LOW);

@@ -1,14 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "CircularQueue.h"
+
 #include "definitions.h"
 #include "SPI_Methods.h"
 #include "GPIO.h"
-#include "Timer0_Methods.h"
 #include "UART_Methods.h"
-#include "Delay.h"
 #include "Sleep.h"
+extern QueueHandle_t UART_Receive_Queue;
 //nothing should change for this
 #define ATString "AT\r\n"
 //disable echo
@@ -34,50 +33,40 @@
 //Expected response array.
 unsigned volatile char ATResponse[30]={};
 #define ATResponseMaxLength 30
-
-void clearResponse(void){
-    for (unsigned char i=0;i<ATResponseMaxLength;i++){
-        ATResponse[i]=0;
-    }
-}
 //ensure the device is working by using the AT command also should not send anything if not given "\r\nOK\r\n"
 unsigned char ATbusy(void){
-    clearResponse();
-    BeginTransmission(strlen(ATString),ATString,6,ATResponse,0);
-    while (isBusy());
-    for (char i=0;i<6;i++){
-        if (ATResponse[i]==ATTestResponse[i]){
-            
-        }
-        else {
-            return 1;
-        }
-    }
-    
-    return 0;
+    return 1;
 }
 void disable_echo(void){
     //disable echo
-    BeginTransmission(strlen(ATE0),ATE0,6,ATResponse,0);
-    while(isBusy());
+    UART_Begin(strlen(ATE0),6,UART_Receive_Queue);
+    UART_sendstring(ATE0);
+    UART_Wait;
 }
 //test ESP and Epaper screen together
 void TestSend(void){
     //echo is annoying
     disable_echo();
-    while (ATbusy());
+    UART_Wait;
     //connect to server
-    BeginTransmission(strlen(TCPSTART),TCPSTART,15,ATResponse,0);
-    while(isBusy());
+    UART_Begin(strlen(TCPSTART),15,UART_Receive_Queue);
+    UART_sendstring(TCPSTART);
+    //BeginTransmission(strlen(TCPSTART),TCPSTART,15,ATResponse,0);
+    UART_Wait;
     //select message length.  In this case it will be 1
-    BeginTransmission(strlen(TCPSENDSTART),TCPSENDSTART,6,ATResponse,0);
-    while(isBusy());
+    UART_Begin(strlen(TCPSENDSTART),6,UART_Receive_Queue);
+    UART_sendstring(TCPSENDSTART);
+    //BeginTransmission(strlen(TCPSENDSTART),TCPSENDSTART,6,ATResponse,0);
+    UART_Wait;
     //use callback function actual values are not important
-    BeginTransmission(1,dummy,1,ATResponse,1);
-    while(isBusy());
+    UART_Begin(1,5000,UART_Receive_Queue);
+    UART_Enqueue_Transmit('a');
+    //BeginTransmission(1,dummy,1,ATResponse,1);
+    UART_Wait;
     //close socket
-    BeginTransmission(strlen(CLOSETCPSOCKET),CLOSETCPSOCKET,14,ATResponse,0);
-    while(isBusy());
+    UART_Begin(strlen(CLOSETCPSOCKET),14,UART_Receive_Queue);
+    //BeginTransmission(strlen(CLOSETCPSOCKET),CLOSETCPSOCKET,14,ATResponse,0);
+    UART_Wait;
 }
 /*
 //listen for a packet

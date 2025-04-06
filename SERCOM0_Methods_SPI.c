@@ -85,19 +85,8 @@ void SPI_Wait_For_Last_Byte(void){
     //wait at most 100ms for spi to finish transfering last byte.  We should never get a timeout, but its here just in case
     xSemaphoreTake(SPIFinished,portMAX_DELAY);
 }
-//for packets of unknown length, or sending packets of very small length.  Use blocking write function (mainly meant for when I don't care enough to define packets)
-void SPI_Start_Unknown_Packet(const volatile unsigned int pin) {
-    pinwrite(pin, LOW);
-}
 //end communication, task suspends itself.
 volatile void SPI_End(volatile unsigned int pin) {
     pinwrite(pin, HIGH);
     Disableinterrupts();
-}
-//this write method uses a blocking loop until we can write again.  For testing purposes mostly or small amount of writes
-
-void SPI_Write_Blocking(unsigned char data) {
-    while (!(SPI.SERCOM_INTFLAG & DRE));
-    SPI.SERCOM_DATA = data;
-    while (!(SPI.SERCOM_INTFLAG & DRE));
 }

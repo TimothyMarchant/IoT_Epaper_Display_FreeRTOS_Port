@@ -1,6 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "definitions.h"
+#include <FreeRTOS.h>
+#include <task.h>
+#include <queue.h>
+#include <timers.h>
+#include <semphr.h>
 #include "GPIO.h"
 #include "Sleep.h"
 #define CTRLBmask 0x00030000
@@ -26,51 +32,15 @@ volatile unsigned short packetpointerT = 0;
 volatile unsigned short packetpointerR = 0;
 unsigned char IsTransferingToSPI = 0;
 unsigned char validdata = 0;
+extern QueueHandle_t UART_Transmit_Queue;
+extern QueueHandle_t UART_Receive_Queue;
+extern TaskHandle_t UARTTask;
+extern SemaphoreHandle_t UARTFinished;
 //meant to be called from other files
 void Disableinterrupt(void);
-void Resetvaliddata(void) {
-    validdata = 0;
-}
+void SetReceiveQueue(QueueHandle_t);
+void SetPacketLengths(unsigned short,unsigned short);
 void EpaperReadWrite_UART_Callback(unsigned char);
-
-void __attribute__((interrupt)) SERCOM1_1_Handler(void) {
-
-    if (UART.SERCOM_INTFLAG & TXC_Flag) {
-
-        while (!(UART.SERCOM_INTFLAG & 0x01));
-        UART.SERCOM_DATA = *(transmissionpacket + packetpointerT);
-        packetpointerT++;
-        if (packetpointerT == packetlengthT) {
-            UART.SERCOM_INTENCLR = TXC_Flag;
-            packetpointerT = 0;
-            if (packetlengthR!=0){
-            UART.SERCOM_INTENSET = RXC_Flag;
-            }
-            else {
-                Disableinterrupt();
-            }
-        }
-
-    }
-}
-
-void __attribute__((interrupt)) SERCOM1_2_Handler(void) {
-    if (IsTransferingToSPI) {
-        unsigned char data = UART.SERCOM_DATA;
-        EpaperReadWrite_UART_Callback(data);
-        return;
-    }
-    while (!(UART.SERCOM_INTFLAG & 0x01));
-    *(datatoread + packetpointerR) = UART.SERCOM_DATA;
-    packetpointerR++;
-    //received last byte if this is true
-    if (packetpointerR == packetlengthR) {
-        UART.SERCOM_INTENCLR = RXC_Flag;
-        packetpointerR = 0;
-        Disableinterrupt();
-    }
-}
-
 volatile unsigned char isBusy(void) {
     if (UART.SERCOM_INTENSET & RXC_Flag || UART.SERCOM_INTENSET & TXC_Flag) {
         //sleep and upon wakeup we will check again
@@ -96,12 +66,12 @@ void InitUART(void) {
 }
 //turn on sercom1
 
-void StartUART(void) {
+void EnableUART(void) {
     UART.SERCOM_CTRLA |= enablebit;
 }
 //turn off sercom1
 
-void EndUART(void) {
+void DisableUART(void) {
     UART.SERCOM_CTRLA &= ~(enablebit);
 }
 
@@ -115,6 +85,24 @@ void Disableinterrupt(void) {
     UART.SERCOM_INTENCLR = defaultinterrupts;
     NVIC_DisableIRQ(SERCOM1_1_IRQn);
     NVIC_DisableIRQ(SERCOM1_2_IRQn);
+}
+void UART_Begin(unsigned short TLength,unsigned short RLength,QueueHandle_t receiverqueue){
+    SetPacketLengths(TLength,RLength);
+    SetReceiveQueue(receiverqueue);
+    Enableinterrupt();
+    vTaskResume(UARTTask);
+}
+
+void UART_Enqueue_Transmit(unsigned char data){
+    xQueueSendToBack(UART_Transmit_Queue,&data,portMAX_DELAY);
+}
+void UART_sendstring(const char*string){
+    for (unsigned char i=0;i<strlen(string);i++){
+        UART_Enqueue_Transmit((unsigned char) *(string+i));
+    }
+}
+void UART_Wait_For_End_Of_Transmission(void){
+    xSemaphoreTake(UARTFinished,portMAX_DELAY);
 }
 //For non screen transfers we know the length in advance.  For "isScreenTransfer" we use the callback for writing to the display.
 void BeginTransmission(unsigned short Tlength, const unsigned char* Tpacket, unsigned short Rlength, unsigned char* Rpacket, unsigned char isScreenTransfer) {
