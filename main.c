@@ -85,8 +85,8 @@ int main(void) {
     xTaskCreate(SPI_task,"SPI task",50,NULL,3,&SPITask);
     xTaskCreate(maintask,"Main task",128,NULL,2,NULL);
     vTaskStartScheduler();
+    //should never be reached
     while (1){
-        pinwrite(PORT_PA03,LOW);
     }
     return (EXIT_SUCCESS);
 }
