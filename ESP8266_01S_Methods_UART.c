@@ -8,6 +8,7 @@
 #include "UART_Methods.h"
 #include "Sleep.h"
 extern QueueHandle_t UART_Receive_Queue;
+extern QueueHandle_t SPI_Queue;
 //nothing should change for this
 #define ATString "AT\r\n"
 //disable echo
@@ -47,7 +48,6 @@ void disable_echo(void){
 void TestSend(void){
     //echo is annoying
     disable_echo();
-    UART_Wait;
     //connect to server
     UART_Begin(strlen(TCPSTART),15,UART_Receive_Queue);
     UART_sendstring(TCPSTART);
@@ -59,10 +59,11 @@ void TestSend(void){
     //BeginTransmission(strlen(TCPSENDSTART),TCPSENDSTART,6,ATResponse,0);
     UART_Wait;
     //use callback function actual values are not important
-    UART_Begin(1,5000,UART_Receive_Queue);
+    UART_Begin(1,5000,SPI_Queue);
     UART_Enqueue_Transmit('a');
     //BeginTransmission(1,dummy,1,ATResponse,1);
     UART_Wait;
+    vTaskDelay(pdMS_TO_TICKS(30));
     //close socket
     UART_Begin(strlen(CLOSETCPSOCKET),14,UART_Receive_Queue);
     //BeginTransmission(strlen(CLOSETCPSOCKET),CLOSETCPSOCKET,14,ATResponse,0);

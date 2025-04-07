@@ -34,5 +34,4 @@ void __attribute__((interrupt)) SERCOM1_1_Handler(void){
 //RX
 void __attribute__((interrupt)) SERCOM1_2_Handler(void){
     UART_CallbackRX();
-    UARTRXCClear;
 }

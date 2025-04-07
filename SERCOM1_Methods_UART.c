@@ -41,15 +41,8 @@ void Disableinterrupt(void);
 void SetReceiveQueue(QueueHandle_t);
 void SetPacketLengths(unsigned short,unsigned short);
 void EpaperReadWrite_UART_Callback(unsigned char);
-volatile unsigned char isBusy(void) {
-    if (UART.SERCOM_INTENSET & RXC_Flag || UART.SERCOM_INTENSET & TXC_Flag) {
-        //sleep and upon wakeup we will check again
-        SLEEP;
-        return 1;
-    }
-    return 0;
-}
-
+void FlushReceiveQueue(void);
+unsigned char UART_Read(void);
 void InitUART(void) {
     //activate peripherial
     GCLK_REGS->GCLK_PCHCTRL[12] = GCLKPERDefaultMask;
@@ -77,6 +70,11 @@ void DisableUART(void) {
 
 void Enableinterrupt(void) {
     UART.SERCOM_INTENSET = defaultinterrupts;
+    UART.SERCOM_INTFLAG=defaultinterrupts;
+    //yes the flag sometimes is high before we've started.
+    if (UART.SERCOM_INTFLAG&0x04){
+        UART_Read();
+    }
     NVIC_EnableIRQ(SERCOM1_1_IRQn);
     NVIC_EnableIRQ(SERCOM1_2_IRQn);
 }
@@ -89,8 +87,8 @@ void Disableinterrupt(void) {
 void UART_Begin(unsigned short TLength,unsigned short RLength,QueueHandle_t receiverqueue){
     SetPacketLengths(TLength,RLength);
     SetReceiveQueue(receiverqueue);
-    Enableinterrupt();
     vTaskResume(UARTTask);
+    Enableinterrupt();
 }
 
 void UART_Enqueue_Transmit(unsigned char data){
@@ -101,27 +99,21 @@ void UART_sendstring(const char*string){
         UART_Enqueue_Transmit((unsigned char) *(string+i));
     }
 }
+void UART_Write(unsigned char data){
+    UART.SERCOM_DATA=data;
+}
+volatile unsigned char UART_Read(void){
+    volatile unsigned char data=UART.SERCOM_DATA;
+    return data;
+}
 void UART_Wait_For_End_Of_Transmission(void){
     xSemaphoreTake(UARTFinished,portMAX_DELAY);
+    Disableinterrupt();
+    FlushReceiveQueue();
 }
-//For non screen transfers we know the length in advance.  For "isScreenTransfer" we use the callback for writing to the display.
-void BeginTransmission(unsigned short Tlength, const unsigned char* Tpacket, unsigned short Rlength, unsigned char* Rpacket, unsigned char isScreenTransfer) {
-    IsTransferingToSPI = isScreenTransfer;
-    transmissionpacket = Tpacket;
-    datatoread = Rpacket;
-    packetlengthT = Tlength;
-    packetlengthR = Rlength;
-    
-    if (!isScreenTransfer) {
-        //UART.SERCOM_INTENCLR = RXC_Flag;
+void FlushReceiveQueue(void){
+    unsigned char data=0;
+    while (xQueueReceive(UART_Receive_Queue,&data,0)==pdPASS){
+        
     }
-    if (Tlength == 0||isScreenTransfer) {
-        UART.SERCOM_INTENCLR = TXC_Flag;
-    }
-    //this write is needed in order for the RXC and TXC flags to go HIGH after the first write.
-    UART.SERCOM_DATA = *Tpacket;
-    if (!isScreenTransfer){
-        packetpointerT++;
-    }
-    Enableinterrupt();
 }

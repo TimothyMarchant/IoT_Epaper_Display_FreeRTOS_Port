@@ -45,7 +45,7 @@ void EIC0_Callback(void){
     portYIELD_FROM_ISR(higherprioritytask);
 }
 void EIC1_Callback(void){
-    functptr=&testscreen;
+    functptr=&updatescreen;
     BaseType_t higherprioritytask=pdFALSE;
     xSemaphoreGiveFromISR(semaphore,&higherprioritytask);
     portYIELD_FROM_ISR(higherprioritytask);
@@ -54,12 +54,13 @@ void SetupHardware(void){
     //configCPUspeed(Sixteen_MHz);
     Init_IO();
     Init_Epaper_IO();
-    Init_EIC(EIC0,0);
+    Init_EIC(EIC0|EIC1,0);
     Set_EIC0(RISE);
     Set_EIC1(RISE);
     Enable_EIC();
     InitSPI(2);
     InitUART();
+    EnableUART();
     EnableSPI();
 }
 void maintask(void * pvParameters){
@@ -78,11 +79,11 @@ int main(void) {
     RXready=xSemaphoreCreateBinary();
     UARTFinished=xSemaphoreCreateBinary();
     //create byte queue
-    UART_Transmit_Queue=xQueueCreate(5,sizeof(unsigned char));
+    UART_Transmit_Queue=xQueueCreate(25,sizeof(unsigned char));
     UART_Receive_Queue=xQueueCreate(20,sizeof(unsigned char));
     SPI_Queue=xQueueCreate(5,sizeof(unsigned char));
-    xTaskCreate(UART_task,"UART task",60,NULL,1,&UARTTask);
-    xTaskCreate(SPI_task,"SPI task",50,NULL,3,&SPITask);
+    xTaskCreate(UART_task,"UART task",100,NULL,3,&UARTTask);
+    xTaskCreate(SPI_task,"SPI task",45,NULL,3,&SPITask);
     xTaskCreate(maintask,"Main task",128,NULL,2,NULL);
     vTaskStartScheduler();
     //should never be reached
