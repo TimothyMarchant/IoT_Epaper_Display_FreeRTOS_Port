@@ -82,8 +82,8 @@ int main(void) {
     UART_Transmit_Queue=xQueueCreate(25,sizeof(unsigned char));
     UART_Receive_Queue=xQueueCreate(20,sizeof(unsigned char));
     SPI_Queue=xQueueCreate(5,sizeof(unsigned char));
-    xTaskCreate(UART_task,"UART task",100,NULL,3,&UARTTask);
-    xTaskCreate(SPI_task,"SPI task",45,NULL,3,&SPITask);
+    xTaskCreate(UART_task,"UART task",75,NULL,3,&UARTTask);
+    xTaskCreate(SPI_task,"SPI task",50,NULL,3,&SPITask);
     xTaskCreate(maintask,"Main task",128,NULL,2,NULL);
     vTaskStartScheduler();
     //should never be reached

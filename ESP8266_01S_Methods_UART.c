@@ -34,10 +34,7 @@ extern QueueHandle_t SPI_Queue;
 //Expected response array.
 unsigned volatile char ATResponse[30]={};
 #define ATResponseMaxLength 30
-//ensure the device is working by using the AT command also should not send anything if not given "\r\nOK\r\n"
-unsigned char ATbusy(void){
-    return 1;
-}
+void StartUARTtoSPITransfer(void);
 void disable_echo(void){
     //disable echo
     UART_Begin(strlen(ATE0),6,UART_Receive_Queue);
@@ -51,22 +48,18 @@ void TestSend(void){
     //connect to server
     UART_Begin(strlen(TCPSTART),15,UART_Receive_Queue);
     UART_sendstring(TCPSTART);
-    //BeginTransmission(strlen(TCPSTART),TCPSTART,15,ATResponse,0);
     UART_Wait;
     //select message length.  In this case it will be 1
     UART_Begin(strlen(TCPSENDSTART),6,UART_Receive_Queue);
     UART_sendstring(TCPSENDSTART);
-    //BeginTransmission(strlen(TCPSENDSTART),TCPSENDSTART,6,ATResponse,0);
     UART_Wait;
-    //use callback function actual values are not important
-    UART_Begin(1,5000,SPI_Queue);
-    UART_Enqueue_Transmit('a');
-    //BeginTransmission(1,dummy,1,ATResponse,1);
+    //transfer UART data to SPI
+    StartUARTtoSPITransfer();
     UART_Wait;
-    vTaskDelay(pdMS_TO_TICKS(30));
+    //vTaskDelay(pdMS_TO_TICKS(30));
     //close socket
-    UART_Begin(strlen(CLOSETCPSOCKET),14,UART_Receive_Queue);
-    //BeginTransmission(strlen(CLOSETCPSOCKET),CLOSETCPSOCKET,14,ATResponse,0);
+    UART_Begin(strlen(CLOSETCPSOCKET),strlen(ATCloseResponse),UART_Receive_Queue);
+    UART_sendstring(CLOSETCPSOCKET);
     UART_Wait;
 }
 /*
