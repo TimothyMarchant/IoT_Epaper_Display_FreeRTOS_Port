@@ -39,10 +39,11 @@ extern SemaphoreHandle_t UARTFinished;
 //meant to be called from other files
 void Disableinterrupt(void);
 void SetReceiveQueue(QueueHandle_t);
-void SetPacketLengths(unsigned short,unsigned short);
+void SetPacketLengths(unsigned short, unsigned short);
 void EpaperReadWrite_UART_Callback(unsigned char);
 void FlushReceiveQueue(void);
 unsigned char UART_Read(void);
+
 void InitUART(void) {
     //activate peripherial
     GCLK_REGS->GCLK_PCHCTRL[12] = GCLKPERDefaultMask;
@@ -70,9 +71,10 @@ void DisableUART(void) {
 
 void Enableinterrupt(void) {
     UART.SERCOM_INTENSET = defaultinterrupts;
-    UART.SERCOM_INTFLAG=defaultinterrupts;
-    //yes the flag sometimes is high before we've started.
-    if (UART.SERCOM_INTFLAG&0x04){
+    UART.SERCOM_INTFLAG = defaultinterrupts;
+    //The RXC flag is high sometimes before I even enable interrupts or the UART module for some reason.
+    //just in case it's set, we have to read from the register to clear it.
+    if (UART.SERCOM_INTFLAG & 0x04) {
         UART_Read();
     }
     NVIC_EnableIRQ(SERCOM1_1_IRQn);
@@ -84,36 +86,44 @@ void Disableinterrupt(void) {
     NVIC_DisableIRQ(SERCOM1_1_IRQn);
     NVIC_DisableIRQ(SERCOM1_2_IRQn);
 }
-void UART_Begin(unsigned short TLength,unsigned short RLength,QueueHandle_t receiverqueue){
-    SetPacketLengths(TLength,RLength);
+
+void UART_Begin(unsigned short TLength, unsigned short RLength, QueueHandle_t receiverqueue) {
+    SetPacketLengths(TLength, RLength);
     SetReceiveQueue(receiverqueue);
     vTaskResume(UARTTask);
     Enableinterrupt();
 }
 
-void UART_Enqueue_Transmit(unsigned char data){
-    xQueueSendToBack(UART_Transmit_Queue,&data,portMAX_DELAY);
+void UART_Enqueue_Transmit(unsigned char data) {
+    xQueueSendToBack(UART_Transmit_Queue, &data, portMAX_DELAY);
 }
-void UART_sendstring(const char*string){
-    for (unsigned char i=0;i<strlen(string);i++){
-        UART_Enqueue_Transmit((unsigned char) *(string+i));
+
+void UART_sendstring(const char*string) {
+    for (unsigned char i = 0; i < strlen(string); i++) {
+        UART_Enqueue_Transmit((unsigned char) *(string + i));
     }
 }
-void UART_Write(unsigned char data){
-    UART.SERCOM_DATA=data;
+
+void UART_Write(unsigned char data) {
+    UART.SERCOM_DATA = data;
 }
-volatile unsigned char UART_Read(void){
-    volatile unsigned char data=UART.SERCOM_DATA;
+
+volatile unsigned char UART_Read(void) {
+    volatile unsigned char data = UART.SERCOM_DATA;
     return data;
 }
-void UART_Wait_For_End_Of_Transmission(void){
-    xSemaphoreTake(UARTFinished,portMAX_DELAY);
+
+void UART_Wait_For_End_Of_Transmission(void) {
+    //wait for UART to be finished
+    xSemaphoreTake(UARTFinished, portMAX_DELAY);
     Disableinterrupt();
+    //we are only flushing out the queue because for the proof of concept we don't really care about the responses right now.
     FlushReceiveQueue();
 }
-void FlushReceiveQueue(void){
-    unsigned char data=0;
-    while (xQueueReceive(UART_Receive_Queue,&data,0)==pdPASS){
-        
+
+void FlushReceiveQueue(void) {
+    unsigned char data = 0;
+    while (xQueueReceive(UART_Receive_Queue, &data, 0) == pdPASS) {
+
     }
 }

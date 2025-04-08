@@ -32,39 +32,34 @@ extern QueueHandle_t SPI_Queue;
 #define ATTestResponse "\r\nOK\r\n"
 #define ATCloseResponse "\r\nCLOSED\r\n\r\nOK\r\n"
 //Expected response array.
-unsigned volatile char ATResponse[30]={};
+unsigned volatile char ATResponse[30] = {};
 #define ATResponseMaxLength 30
 void StartUARTtoSPITransfer(void);
-void disable_echo(void){
+
+void disable_echo(void) {
     //disable echo
-    UART_Begin(strlen(ATE0),6,UART_Receive_Queue);
+    UART_Begin(strlen(ATE0), 6, UART_Receive_Queue);
     UART_sendstring(ATE0);
     UART_Wait;
 }
 //test ESP and Epaper screen together
-void TestSend(void){
+
+void TestSend(void) {
     //echo is annoying
     disable_echo();
     //connect to server
-    UART_Begin(strlen(TCPSTART),15,UART_Receive_Queue);
+    UART_Begin(strlen(TCPSTART), 15, UART_Receive_Queue);
     UART_sendstring(TCPSTART);
     UART_Wait;
     //select message length.  In this case it will be 1
-    UART_Begin(strlen(TCPSENDSTART),6,UART_Receive_Queue);
+    UART_Begin(strlen(TCPSENDSTART), 6, UART_Receive_Queue);
     UART_sendstring(TCPSENDSTART);
     UART_Wait;
     //transfer UART data to SPI
     StartUARTtoSPITransfer();
     UART_Wait;
-    //vTaskDelay(pdMS_TO_TICKS(30));
     //close socket
-    UART_Begin(strlen(CLOSETCPSOCKET),strlen(ATCloseResponse),UART_Receive_Queue);
+    UART_Begin(strlen(CLOSETCPSOCKET), 14, UART_Receive_Queue);
     UART_sendstring(CLOSETCPSOCKET);
     UART_Wait;
 }
-/*
-//listen for a packet
-void Listen(unsigned short length){
-    
-}
- * */
