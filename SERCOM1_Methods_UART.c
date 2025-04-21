@@ -87,9 +87,8 @@ void Disableinterrupt(void) {
     NVIC_DisableIRQ(SERCOM1_2_IRQn);
 }
 
-void UART_Begin(unsigned short TLength, unsigned short RLength, QueueHandle_t receiverqueue) {
+void UART_Begin(unsigned short TLength, unsigned short RLength) {
     SetPacketLengths(TLength, RLength);
-    SetReceiveQueue(receiverqueue);
     vTaskResume(UARTTask);
     Enableinterrupt();
 }

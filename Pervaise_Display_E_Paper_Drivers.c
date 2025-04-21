@@ -30,11 +30,19 @@
 #define UpdateDisplay 0x20
 #define RoomTemperature 0x14
 #endif
-#ifndef SPIShorthand
+#define SPIShorthandRTOS 0
+//use RTOS task methods.
+#ifdef SPIShorthandRTOS
+#if SPIShorthandRTOS == 1
 #define Write(data) SPI_Enqueue(data) 
 #define SPIWait SPI_Wait_For_Last_Byte()
+//use blocking methods
+#else
+#define Write(data) SPI_Write_BLOCKING(data)
+#define SPIWait EndSPI_BLOCKING(CS)
 #endif
-void TestSend(void);
+#endif
+void GetImage(void);
 //this is to write image data; this is not the most optimal way to write this, but this is just to test things.
 //message format is +IPD,<LENGTH>:<DATA> where LENGTH<=1460
 
@@ -49,7 +57,6 @@ void Init_Epaper_IO(void) {
     configpin(Busy, Input);
     pinwrite(CS, HIGH);
     pinwrite(DC, HIGH);
-    //pinwrite(RES,LOW);
 }
 //send a command
 
@@ -60,23 +67,25 @@ void sendcommand(unsigned char CMD) {
 }
 //Pervaise Displays wants you to stop powering the screen once you are done writing to it, so this would be called more than once.
 //However for this project we will skip that for now.
-
+//these values are in the datasheet for how long to wait.  Used only on setup.
+#define DatasheetWait1 5
+#define DatasheetWait2 10
 void Init_Screen(void) {
-    delay(5);
+    delay(DatasheetWait1);
     configpin(RES, Output);
     pinwrite(RES, HIGH);
-    delay(10);
+    delay(DatasheetWait2);
     pinwrite(RES, LOW);
-    delay(10);
+    delay(DatasheetWait2);
     pinwrite(RES, HIGH);
-    delay(10);
+    delay(DatasheetWait2);
     //wait for busy to go LOW
     while (pinread(Busy, 14));
-    SPI_Begin(CS, 1);
+    StartSPI_BLOCKING(CS);
     sendcommand(Softreset);
     SPIWait;
     while (pinread(Busy, 14));
-    SPI_Begin(CS, 4);
+    StartSPI_BLOCKING(CS);
     sendcommand(TemperatureREG);
     //temperature
     Write(RoomTemperature);
@@ -87,13 +96,13 @@ void Init_Screen(void) {
 //testing purposes
 
 void testsendbuffer(void) {
-    SPI_Begin(CS, 5001);
+    StartSPI_BLOCKING(CS);
     sendcommand(DTM1REG);
     for (unsigned short i = 0; i < 5000; i++) {
         Write(0x00);
     }
     SPIWait;
-    SPI_Begin(CS, 5001);
+    StartSPI_BLOCKING(CS);
     sendcommand(DTM2REG);
     for (unsigned short i = 0; i < 5000; i++) {
         Write(0x00);
@@ -101,7 +110,7 @@ void testsendbuffer(void) {
     SPIWait;
     //update display
     while (pinread(Busy, 14));
-    SPI_Begin(CS, 1);
+    StartSPI_BLOCKING(CS);
     sendcommand(UpdateDisplay);
     SPIWait;
     while (pinread(Busy, 14));
@@ -110,11 +119,11 @@ void testsendbuffer(void) {
 
 void updatescreen(void) {
     Init_Screen();
-    SPI_Begin(CS, 5001);
+    StartSPI_BLOCKING(CS);
     sendcommand(DTM1REG);
-    TestSend();
+    GetImage();
     SPIWait;
-    SPI_Begin(CS, 5001);
+    StartSPI_BLOCKING(CS);
     sendcommand(DTM2REG);
     for (unsigned short i = 0; i < 5000; i++) {
         Write(0x00);
@@ -122,7 +131,7 @@ void updatescreen(void) {
     SPIWait;
     //update display
     while (pinread(Busy, 14));
-    SPI_Begin(CS, 1);
+    StartSPI_BLOCKING(CS);
     sendcommand(UpdateDisplay);
     SPIWait;
     while (pinread(Busy, 14));

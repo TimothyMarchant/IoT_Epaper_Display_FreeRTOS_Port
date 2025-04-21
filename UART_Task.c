@@ -43,15 +43,8 @@ void SetPacketLengths(unsigned short TXlength, unsigned short RXlength) {
     TransmitLength = TXlength;
     ReceiveLength = RXlength;
 }
-//receiver queue
-
-void SetReceiveQueue(QueueHandle_t queue) {
-    //UART_Receive_Queue_ptr=&queue;
-}
-//use static inline so compiler knows to optimize these functions
 //transmit sequence similiar to SPI_task.
-
-static inline void TransmitSequence(void) {
+void TransmitSequence(void) {
     for (unsigned short i = 0; i < TransmitLength; i++) {
         xQueueReceive(UART_Transmit_Queue, (unsigned char *) &UARTdata, portMAX_DELAY);
         //UART write
@@ -60,8 +53,7 @@ static inline void TransmitSequence(void) {
         xSemaphoreTake(TXready, portMAX_DELAY);
     }
 }
-
-static inline void ReceiveSequence(void) {
+void ReceiveSequence(void) {
     for (unsigned short i = 0; i < ReceiveLength; i++) {
         //wait for data on RX line
         xSemaphoreTake(RXready, portMAX_DELAY);
@@ -92,7 +84,8 @@ void ReceiveIntoSPI(void) {
             //read data
 
             //put data in a queue to be read elsewhere.
-            xQueueSendToBack(SPI_Queue, (unsigned char *) &UARTdata, portMAX_DELAY);
+            //xQueueSendToBack(SPI_Queue, (unsigned char *) &UARTdata, portMAX_DELAY);
+            SPI_Write_BLOCKING(UARTdata);
         }
     }
     transferingtoSPI = 0;

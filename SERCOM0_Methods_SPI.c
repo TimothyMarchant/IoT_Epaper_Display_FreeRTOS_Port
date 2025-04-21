@@ -28,7 +28,7 @@ void SetCS(const unsigned int CSpin);
 static inline void Disableinterrupts(void);
 #define PA PORT_REGS->GROUP[0]
 //void SPI_Queue_Callback(void);
-volatile void SPI_End(volatile unsigned int pin);
+void SPI_End(unsigned int pin);
 
 void InitSPI(const unsigned char baudrate) {
     //using SSOP24 package.  Enable pins for SERCOM0
@@ -68,7 +68,7 @@ static inline void Disableinterrupts(void) {
     NVIC_DisableIRQ(SERCOM0_1_IRQn);
 }
 
-void SPI_Begin(const unsigned int CS, const volatile unsigned short length) {
+void SPI_Begin(const unsigned int CS, const unsigned short length) {
     pinwrite(CS, LOW);
     SetPacketlength(length);
     SetCS(CS);
@@ -79,9 +79,9 @@ void SPI_Begin(const unsigned int CS, const volatile unsigned short length) {
 
 void SPI_Enqueue(unsigned char data) {
     //wait at most 100 ms
-    xQueueSendToBack(SPI_Queue, &data, portMAX_DELAY);
+    xQueueSendToBack(SPI_Queue, &data, pdMS_TO_TICKS(100));
 }
-
+//meant for SPI_Task;
 void SPI_Write(unsigned char data) {
     SPI.SERCOM_DATA = data;
 }
@@ -89,11 +89,27 @@ void SPI_Write(unsigned char data) {
 
 void SPI_Wait_For_Last_Byte(void) {
     //wait at most 100ms for spi to finish transfering last byte.  We should never get a timeout, but its here just in case
-    xSemaphoreTake(SPIFinished, portMAX_DELAY);
+    xSemaphoreTake(SPIFinished, pdMS_TO_TICKS(100));
 }
 //end communication, task suspends itself.
-
-volatile void SPI_End(volatile unsigned int pin) {
+void SPI_End(unsigned int pin) {
     pinwrite(pin, HIGH);
+    Disableinterrupts();
+}
+//for polling based writing
+void StartSPI_BLOCKING(unsigned int CS){
+    pinwrite(CS, LOW);
+    Enableinterrupts();
+}
+void SPI_Write_BLOCKING(unsigned char data){
+    //do not transmit if DRE flag is not set.
+    while(!SPI.SERCOM_INTFLAG&DRE);
+    SPI.SERCOM_DATA = data;
+    while(!SPI.SERCOM_INTFLAG&DRE);
+}
+void EndSPI_BLOCKING(unsigned int pin){
+    //do not transmit if DRE flag is not set.
+    while(!SPI.SERCOM_INTFLAG&DRE);
+    pinwrite(pin,HIGH);
     Disableinterrupts();
 }

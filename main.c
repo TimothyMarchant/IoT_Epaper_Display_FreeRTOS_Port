@@ -23,10 +23,16 @@
 #include "UART_Methods.h"
 #include "EPaper_Methods.h"
 void (* screenmethod)(void);
+void SetScreenMethod(volatile void (*Method)(void));
 void updatescreen(void);
 void UART_task(void*);
 void SPI_task(void*);
 //semaphore declarations
+SemaphoreHandle_t Epaper_start;
+SemaphoreHandle_t Epaper_INIT_finished;
+SemaphoreHandle_t Epaper_Ready;
+SemaphoreHandle_t ESP_Receive_finished;
+SemaphoreHandle_t ESP_Ready;
 SemaphoreHandle_t EICReady;
 SemaphoreHandle_t SPIFinished;
 SemaphoreHandle_t TXready;
@@ -41,6 +47,8 @@ QueueHandle_t UART_Receive_Queue;
 //task declarations.  Main task is omitted as it shouldn't be referenced by anything.
 TaskHandle_t SPITask;
 TaskHandle_t UARTTask;
+TaskHandle_t EpaperTask;
+TaskHandle_t ESPTask;
 //callback functions for determining which function to call after wakeup.
 
 void EIC0_Callback(void) {

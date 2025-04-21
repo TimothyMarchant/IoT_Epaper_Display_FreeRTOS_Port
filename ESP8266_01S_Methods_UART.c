@@ -38,28 +38,34 @@ void StartUARTtoSPITransfer(void);
 
 void disable_echo(void) {
     //disable echo
-    UART_Begin(strlen(ATE0), 6, UART_Receive_Queue);
+    UART_Begin(strlen(ATE0), 6);
     UART_sendstring(ATE0);
     UART_Wait;
 }
-//test ESP and Epaper screen together
-
-void TestSend(void) {
-    //echo is annoying
-    disable_echo();
-    //connect to server
-    UART_Begin(strlen(TCPSTART), 15, UART_Receive_Queue);
+//Get Epaper image for the display.
+void StartConnection(void){
+    UART_Begin(strlen(TCPSTART), 15);
     UART_sendstring(TCPSTART);
     UART_Wait;
-    //select message length.  In this case it will be 1
-    UART_Begin(strlen(TCPSENDSTART), 6, UART_Receive_Queue);
+}
+void TCPSendstart_UART(void){
+    UART_Begin(strlen(TCPSENDSTART), 6);
     UART_sendstring(TCPSENDSTART);
     UART_Wait;
+}
+void TCP_Close_Socket(void){
+    UART_Begin(strlen(CLOSETCPSOCKET), 14);
+    UART_sendstring(CLOSETCPSOCKET);
+    UART_Wait;
+}
+void GetImage(void) {
+    //connect to server
+    StartConnection();
+    //select message length.  In this case it will be 1
+    TCPSendstart_UART();
     //transfer UART data to SPI
     StartUARTtoSPITransfer();
     UART_Wait;
     //close socket
-    UART_Begin(strlen(CLOSETCPSOCKET), 14, UART_Receive_Queue);
-    UART_sendstring(CLOSETCPSOCKET);
-    UART_Wait;
+    TCP_Close_Socket();
 }
