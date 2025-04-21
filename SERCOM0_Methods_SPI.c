@@ -101,7 +101,7 @@ void StartSPI_BLOCKING(unsigned int CS){
     pinwrite(CS, LOW);
     Enableinterrupts();
 }
-void SPI_Write_BLOCKING(unsigned char data){
+void SPI_Write_BLOCKING(volatile unsigned char data){
     //do not transmit if DRE flag is not set.
     while(!SPI.SERCOM_INTFLAG&DRE);
     SPI.SERCOM_DATA = data;

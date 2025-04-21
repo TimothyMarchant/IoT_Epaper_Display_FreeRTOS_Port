@@ -18,7 +18,8 @@
 #define DC PORT_PA15
 #define RES PORT_PA08
 //input
-#define Busy PORT_PA14
+#define Busy PORT_PA23
+#define BusyPinnum 23
 #define CS PORT_PA16
 //I took this from my previous working of this screen
 #define Softreset 0x12
@@ -42,11 +43,14 @@
 #define SPIWait EndSPI_BLOCKING(CS)
 #endif
 #endif
-void GetImage(void);
-//this is to write image data; this is not the most optimal way to write this, but this is just to test things.
-//message format is +IPD,<LENGTH>:<DATA> where LENGTH<=1460
-
-void EpaperReadWrite_UART_Callback(unsigned char data) {
+extern SemaphoreHandle_t ESP_Image_Received;
+extern SemaphoreHandle_t Epaper_INIT_finished;
+extern SemaphoreHandle_t Epaper_Finished;
+extern SemaphoreHandle_t BusyLOW;
+void EIC2_Callback(void){
+    BaseType_t higherprioritytask = pdFALSE;
+    xSemaphoreGiveFromISR(BusyLOW,&higherprioritytask);
+    portYIELD_FROM_ISR(higherprioritytask);
 }
 //only called once
 
@@ -60,17 +64,23 @@ void Init_Epaper_IO(void) {
 }
 //send a command
 
-void sendcommand(unsigned char CMD) {
+static void sendcommand(unsigned char CMD) {
     pinwrite(DC, LOW);
     Write(CMD);
     pinwrite(DC, HIGH);
+}
+static void WaitForBusy(void){
+    //if HIGH
+    if (pinread(Busy,BusyPinnum)){
+    xSemaphoreTake(BusyLOW,portMAX_DELAY);
+    }
 }
 //Pervaise Displays wants you to stop powering the screen once you are done writing to it, so this would be called more than once.
 //However for this project we will skip that for now.
 //these values are in the datasheet for how long to wait.  Used only on setup.
 #define DatasheetWait1 5
 #define DatasheetWait2 10
-void Init_Screen(void) {
+static void Init_Screen(void) {
     delay(DatasheetWait1);
     configpin(RES, Output);
     pinwrite(RES, HIGH);
@@ -80,11 +90,11 @@ void Init_Screen(void) {
     pinwrite(RES, HIGH);
     delay(DatasheetWait2);
     //wait for busy to go LOW
-    while (pinread(Busy, 14));
+    WaitForBusy();
     StartSPI_BLOCKING(CS);
     sendcommand(Softreset);
     SPIWait;
-    while (pinread(Busy, 14));
+    WaitForBusy();
     StartSPI_BLOCKING(CS);
     sendcommand(TemperatureREG);
     //temperature
@@ -93,27 +103,40 @@ void Init_Screen(void) {
     Write(PanelSettingData);
     SPIWait;
 }
-//testing purposes
-
-void testsendbuffer(void) {
+static void SendToDTM1REG(){
     StartSPI_BLOCKING(CS);
     sendcommand(DTM1REG);
-    for (unsigned short i = 0; i < 5000; i++) {
-        Write(0x00);
+    for (volatile unsigned short i = 0; i < 5000; i++) {
+        Write(0);
     }
     SPIWait;
+}
+static void SendToDTM2REG(void){
     StartSPI_BLOCKING(CS);
     sendcommand(DTM2REG);
-    for (unsigned short i = 0; i < 5000; i++) {
-        Write(0x00);
+    for (volatile unsigned short i = 0; i < 5000; i++) {
+        Write(0);
     }
     SPIWait;
+}
+static void SendUpdateCMD(void){
     //update display
-    while (pinread(Busy, 14));
+    WaitForBusy();
     StartSPI_BLOCKING(CS);
     sendcommand(UpdateDisplay);
     SPIWait;
-    while (pinread(Busy, 14));
+    WaitForBusy();
+}
+static void GiveEpaperFinished(void){
+    xSemaphoreGive(Epaper_Finished);
+}
+//testing purposes
+
+void testsendbuffer(void) {
+    SendToDTM1REG();
+    SendToDTM2REG();
+    //update display
+    SendUpdateCMD();
 }
 //send necessary data to update screen
 
@@ -121,24 +144,19 @@ void updatescreen(void) {
     Init_Screen();
     StartSPI_BLOCKING(CS);
     sendcommand(DTM1REG);
-    GetImage();
+    xSemaphoreGive(Epaper_INIT_finished);
+    //wait at most 10 seconds for the image to be received.  if for some reason it's not received abort.
+    xSemaphoreTake(ESP_Image_Received,pdMS_TO_TICKS(30000));
     SPIWait;
     StartSPI_BLOCKING(CS);
-    sendcommand(DTM2REG);
-    for (unsigned short i = 0; i < 5000; i++) {
-        Write(0x00);
-    }
-    SPIWait;
-    //update display
-    while (pinread(Busy, 14));
-    StartSPI_BLOCKING(CS);
-    sendcommand(UpdateDisplay);
-    SPIWait;
-    while (pinread(Busy, 14));
+    SendToDTM2REG();
+    SendUpdateCMD();
+    GiveEpaperFinished();
 }
 //For testing purposes
 
-void testscreen(void) {
+void ClearScreen(void) {
     Init_Screen();
     testsendbuffer();
+    GiveEpaperFinished();
 }

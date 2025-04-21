@@ -5,6 +5,7 @@
 #define UARTRXCClear SERCOM1_REGS->USART_INT.SERCOM_INTFLAG=0x04
 void EIC0_Callback(void);
 void EIC1_Callback(void);
+void EIC2_Callback(void);
 void SPI_Callback(void);
 void UART_CallbackTX(void);
 void UART_CallbackRX(void);
@@ -17,13 +18,14 @@ void __attribute__((interrupt)) EIC_EXTINT_1_Handler(void){
     EICClearFlag(EIC1);
 }
 void __attribute__((interrupt)) EIC_EXTINT_2_Handler(void){
+    EIC2_Callback();
     EICClearFlag(EIC2);
 }
 void __attribute__((interrupt)) EIC_EXTINT_3_Handler(void){
     EICClearFlag(EIC3);
 }
 void __attribute__((interrupt)) SERCOM0_1_Handler(void){
-    SPI_Callback();
+    //SPI_Callback();
     SPITXCClear;
 }
 //TX

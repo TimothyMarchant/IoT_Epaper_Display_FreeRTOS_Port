@@ -81,10 +81,7 @@ void ReceiveIntoSPI(void) {
         for (unsigned short i = 0; i < TCPLengths[j]; i++) {
             //wait for data on RX line
             xSemaphoreTake(RXready, portMAX_DELAY);
-            //read data
-
-            //put data in a queue to be read elsewhere.
-            //xQueueSendToBack(SPI_Queue, (unsigned char *) &UARTdata, portMAX_DELAY);
+            //read data; done in ISR
             SPI_Write_BLOCKING(UARTdata);
         }
     }

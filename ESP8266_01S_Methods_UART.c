@@ -33,6 +33,8 @@ extern QueueHandle_t SPI_Queue;
 #define ATCloseResponse "\r\nCLOSED\r\n\r\nOK\r\n"
 //Expected response array.
 unsigned volatile char ATResponse[30] = {};
+extern SemaphoreHandle_t ESP_Image_Received;
+extern SemaphoreHandle_t Epaper_INIT_finished;
 #define ATResponseMaxLength 30
 void StartUARTtoSPITransfer(void);
 
@@ -64,8 +66,10 @@ void GetImage(void) {
     //select message length.  In this case it will be 1
     TCPSendstart_UART();
     //transfer UART data to SPI
+    xSemaphoreTake(Epaper_INIT_finished,pdMS_TO_TICKS(10000));
     StartUARTtoSPITransfer();
     UART_Wait;
+    xSemaphoreGive(ESP_Image_Received);
     //close socket
     TCP_Close_Socket();
 }

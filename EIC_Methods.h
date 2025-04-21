@@ -7,6 +7,8 @@ void Set_EIC0(const unsigned char Edge);
 void Set_EIC1(const unsigned char Edge);
 void Set_EIC2(const unsigned char Edge);
 void Set_EIC3(const unsigned char Edge);
+void Clear_EIC_INT(const unsigned char EICINTEN);
+void Set_EIC_INT(const unsigned char EICINTEN);
 void Clear_EIC0(void);
 void Clear_EIC1(void);
 void Clear_EIC2(void);

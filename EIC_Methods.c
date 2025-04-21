@@ -17,9 +17,9 @@ void Init_EIC(const unsigned char EICINTEN, const unsigned int configvalue) {
     EIC->EIC_DPRESCALER = Prescalersettings;
     EIC->EIC_INTENSET = EICINTEN;
     NVIC_SetPriority(EIC_EXTINT_0_IRQn, 3);
-    NVIC_SetPriority(EIC_EXTINT_0_IRQn, 3);
-    NVIC_SetPriority(EIC_EXTINT_0_IRQn, 3);
-    NVIC_SetPriority(EIC_EXTINT_0_IRQn, 3);
+    NVIC_SetPriority(EIC_EXTINT_1_IRQn, 3);
+    NVIC_SetPriority(EIC_EXTINT_2_IRQn, 3);
+    NVIC_SetPriority(EIC_EXTINT_3_IRQn, 3);
 }
 
 void Set_EIC0(const unsigned char Edge) {
@@ -49,21 +49,29 @@ void Set_EIC3(const unsigned char Edge) {
     EIC->EIC_CONFIG|=FilterEN3(Edge);
     NVIC_EnableIRQ(EIC_EXTINT_3_IRQn);
 }
-
+void Clear_EIC_INT(const unsigned char EICINTEN){
+    EIC->EIC_INTENCLR=EICINTEN;
+    EIC->EIC_INTFLAG=EICINTEN;
+}
+void Set_EIC_INT(const unsigned char EICINTEN){
+    EIC->EIC_INTFLAG=EICINTEN;
+    EIC->EIC_INTENSET=EICINTEN;
+    
+}
 void Clear_EIC0(void) {
-    NVIC_DisableIRQ(EIC_EXTINT_0_IRQn);
+    EIC->EIC_INTENCLR=EIC0;
 }
 
 void Clear_EIC1(void) {
-    NVIC_DisableIRQ(EIC_EXTINT_1_IRQn);
+    EIC->EIC_INTENCLR=EIC1;
 }
 
 void Clear_EIC2(void) {
-    NVIC_DisableIRQ(EIC_EXTINT_2_IRQn);
+    EIC->EIC_INTENCLR=EIC2;
 }
 
 void Clear_EIC3(void) {
-    NVIC_DisableIRQ(EIC_EXTINT_3_IRQn);
+    EIC->EIC_INTENCLR=EIC3;
 }
 
 void Enable_EIC(void) {
