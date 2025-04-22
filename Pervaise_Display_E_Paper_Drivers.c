@@ -71,9 +71,7 @@ static void sendcommand(unsigned char CMD) {
 }
 static void WaitForBusy(void){
     //if HIGH
-    if (pinread(Busy,BusyPinnum)){
-    xSemaphoreTake(BusyLOW,portMAX_DELAY);
-    }
+    while(pinread(Busy,BusyPinnum));
 }
 //Pervaise Displays wants you to stop powering the screen once you are done writing to it, so this would be called more than once.
 //However for this project we will skip that for now.

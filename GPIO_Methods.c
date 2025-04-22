@@ -22,7 +22,7 @@ void Init_IO(void){
     PA.PORT_PINCFG[i]=INEN;
     
     }
-    PA.PORT_DIR=~(0);
+    PA.PORT_DIRSET=(~((unsigned int) 0));
     PA.PORT_OUTCLR=~(0);
 }
 void configpin(const volatile unsigned int pin,const unsigned char type){

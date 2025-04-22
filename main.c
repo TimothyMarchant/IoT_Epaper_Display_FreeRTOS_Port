@@ -83,10 +83,10 @@ void EIC1_Callback(void) {
 void SetupHardware(void) {
     Init_IO();
     Init_Epaper_IO();
-    Init_EIC(EIC0 | EIC1 | EIC2, 0);
+    Init_EIC(EIC0 | EIC1, 0);
     Set_EIC0(RISE);
     Set_EIC1(RISE);
-    Set_EIC2(FALL);
+    //Set_EIC2(FALL);
     Enable_EIC();
     InitSPI(2);
     InitUART();
@@ -95,6 +95,8 @@ void SetupHardware(void) {
 }
 //used for waking up other tasks.
 void maintask(void * pvParameters) {
+    
+    Set_EIC_INT(EIC0|EIC1);
     while (1) {
         //suspend until further notice.
         xSemaphoreTake(EICReady, portMAX_DELAY);

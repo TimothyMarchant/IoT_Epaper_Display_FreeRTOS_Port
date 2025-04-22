@@ -15,8 +15,8 @@ void Init_EIC(const unsigned char EICINTEN, const unsigned int configvalue) {
     EIC->EIC_CTRLA = EICCTRLAmask;
     EIC->EIC_DEBOUNCEN = EnableDebounce;
     EIC->EIC_DPRESCALER = Prescalersettings;
-    EIC->EIC_INTENSET = EICINTEN;
-    NVIC_SetPriority(EIC_EXTINT_0_IRQn, 3);
+    //EIC->EIC_INTENSET = EICINTEN;
+    NVIC_SetPriority(EIC_EXTINT_0_IRQn, 2);
     NVIC_SetPriority(EIC_EXTINT_1_IRQn, 3);
     NVIC_SetPriority(EIC_EXTINT_2_IRQn, 3);
     NVIC_SetPriority(EIC_EXTINT_3_IRQn, 3);
@@ -28,14 +28,16 @@ void Set_EIC0(const unsigned char Edge) {
     configpin(PORT_PA19,Input);
     pinmuxconfig(19,GROUPA);
     NVIC_EnableIRQ(EIC_EXTINT_0_IRQn);
+    EICClearFlag(EIC0);
 }
 
 void Set_EIC1(const unsigned char Edge) {
     EIC->EIC_CONFIG|=FilterEN1(Edge);
-    //EIC1 is on this pin, PA22 pin 20 on the SSOP package
-    configpin(PORT_PA22,Input);
-    pinmuxconfig(22,GROUPA);
+    //EIC1 on PA10 on 32 pin TQFP package.
+    configpin(PORT_PA10,Input);
+    pinmuxconfig(10,GROUPA);
     NVIC_EnableIRQ(EIC_EXTINT_1_IRQn);
+    EICClearFlag(EIC1);
 }
 
 void Set_EIC2(const unsigned char Edge) {
@@ -43,6 +45,7 @@ void Set_EIC2(const unsigned char Edge) {
     configpin(PORT_PA23,Input);
     pinmuxconfig(23,GROUPA);
     NVIC_EnableIRQ(EIC_EXTINT_2_IRQn);
+    EICClearFlag(EIC2);
 }
 
 void Set_EIC3(const unsigned char Edge) {
@@ -56,6 +59,7 @@ void Clear_EIC_INT(const unsigned char EICINTEN){
 void Set_EIC_INT(const unsigned char EICINTEN){
     EIC->EIC_INTFLAG=EICINTEN;
     EIC->EIC_INTENSET=EICINTEN;
+    
     
 }
 void Clear_EIC0(void) {

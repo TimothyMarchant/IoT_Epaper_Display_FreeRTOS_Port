@@ -1,7 +1,6 @@
 #include "Sleep.h"
 #include "EIC_Methods.h"
 #include "SPI_Methods.h"
-#include "TC1_Methods.h"
 #include "UART_Methods.h"
 void EnterDeepSleep(void){
     ConfigSleep(STANDBY);
