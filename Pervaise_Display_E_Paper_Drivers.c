@@ -43,6 +43,7 @@
 #define SPIWait EndSPI_BLOCKING(CS)
 #endif
 #endif
+#define UsingBusySemaphore 1
 extern SemaphoreHandle_t ESP_Image_Received;
 extern SemaphoreHandle_t Epaper_INIT_finished;
 extern SemaphoreHandle_t Epaper_Finished;
@@ -71,7 +72,13 @@ static void sendcommand(unsigned char CMD) {
 }
 static void WaitForBusy(void){
     //if HIGH
+#if UsingBusySemaphore == 1
+    while (pinread(Busy,BusyPinnum)){
+        xSemaphoreTake(BusyLOW,pdMS_TO_TICKS(50));
+    }
+#else
     while(pinread(Busy,BusyPinnum));
+#endif
 }
 //Pervaise Displays wants you to stop powering the screen once you are done writing to it, so this would be called more than once.
 //However for this project we will skip that for now.

@@ -83,10 +83,10 @@ void EIC1_Callback(void) {
 void SetupHardware(void) {
     Init_IO();
     Init_Epaper_IO();
-    Init_EIC(EIC0 | EIC1, 0);
+    Init_EIC(EIC0 | EIC1 | EIC2, 0);
     Set_EIC0(RISE);
     Set_EIC1(RISE);
-    //Set_EIC2(FALL);
+    Set_EIC2(FALL);
     Enable_EIC();
     InitSPI(2);
     InitUART();

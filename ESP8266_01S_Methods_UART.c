@@ -66,7 +66,7 @@ void GetImage(void) {
     //select message length.  In this case it will be 1
     TCPSendstart_UART();
     //transfer UART data to SPI
-    xSemaphoreTake(Epaper_INIT_finished,pdMS_TO_TICKS(10000));
+    xSemaphoreTake(Epaper_INIT_finished,pdMS_TO_TICKS(30000));
     StartUARTtoSPITransfer();
     UART_Wait;
     xSemaphoreGive(ESP_Image_Received);
