@@ -7,7 +7,7 @@
 #define UART_Methods_h
 void InitUART(void);
 void EnableUART(void);
-void UART_Begin(unsigned short TLength,unsigned short RLength);
+void UART_Begin(unsigned short TLength,unsigned short RLength,volatile unsigned char* Receiverarr);
 void UART_Enqueue_Transmit(unsigned char data);
 void UART_sendstring(const char*string);
 void UART_Write(unsigned char data);

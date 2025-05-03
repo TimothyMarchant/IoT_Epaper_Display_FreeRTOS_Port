@@ -24,8 +24,11 @@
 #define enablebit 0x02
 unsigned char* datatoread;
 const unsigned char* transmissionpacket;
+volatile unsigned char * receiverarray=NULL;
+volatile unsigned char DoNeedToSaveResponse=0;
 unsigned short packetlengthT = 0;
 unsigned short packetlengthR = 0;
+
 //transmission pointer
 volatile unsigned short packetpointerT = 0;
 //receiving pointer
@@ -87,8 +90,17 @@ void Disableinterrupt(void) {
     NVIC_DisableIRQ(SERCOM1_2_IRQn);
 }
 
-void UART_Begin(unsigned short TLength, unsigned short RLength) {
+void UART_Begin(unsigned short TLength, unsigned short RLength,volatile unsigned char* Receiverarr) {
     SetPacketLengths(TLength, RLength);
+    receiverarray=Receiverarr;
+    //whether or not we want to save the response or not.  The Response may not be useful and we can throw it away.
+    if (receiverarray==NULL){
+        DoNeedToSaveResponse=0;
+    }
+    //Response is needed for something
+    else {
+        DoNeedToSaveResponse=1;
+    }
     vTaskResume(UARTTask);
     Enableinterrupt();
 }
@@ -102,7 +114,7 @@ void UART_sendstring(const char*string) {
         UART_Enqueue_Transmit((unsigned char) *(string + i));
     }
 }
-
+//meant for SPI task
 void UART_Write(unsigned char data) {
     UART.SERCOM_DATA = data;
 }
@@ -116,13 +128,20 @@ void UART_Wait_For_End_Of_Transmission(void) {
     //wait for UART to be finished
     xSemaphoreTake(UARTFinished, portMAX_DELAY);
     Disableinterrupt();
-    //we are only flushing out the queue because for the proof of concept we don't really care about the responses right now.
+    //Empty the response into the array from the start method or just discard the response.
     FlushReceiveQueue();
 }
 
 void FlushReceiveQueue(void) {
-    unsigned char data = 0;
-    while (xQueueReceive(UART_Receive_Queue, &data, 0) == pdPASS) {
+    unsigned char i = 0;
+    if (DoNeedToSaveResponse){
+        while (xQueueReceive(UART_Receive_Queue,(void *) (receiverarray+i),0)==pdPASS){
+            i++;
+        }
+    }
+    else {
+        while (xQueueReceive(UART_Receive_Queue, &i, 0) == pdPASS) {
 
+        }
     }
 }

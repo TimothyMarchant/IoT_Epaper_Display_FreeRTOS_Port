@@ -8,7 +8,7 @@
  * The compiler being used is XC32 with O2 optimizations.  O0 (debug) can barely fit on the chip.
  * For an actual product a bigger microcontroller probably is necessary, but I digress.
  */
-
+#define IsTesting 0
 #include <stdio.h>
 #include <stdlib.h>
 #include "definitions.h"
@@ -23,6 +23,8 @@
 #include "UART_Methods.h"
 #include "EPaper_Methods.h"
 #include "Task_Names.h"
+#include "Unit_Tests.h"
+
 void (* screenmethod)(void);
 void SetScreenMethod(volatile void (*Method)(void));
 void updatescreen(void);
@@ -95,7 +97,6 @@ void SetupHardware(void) {
 }
 //used for waking up other tasks.
 void maintask(void * pvParameters) {
-    
     Set_EIC_INT(EIC0|EIC1);
     while (1) {
         //suspend until further notice.
@@ -130,11 +131,12 @@ void CreateSemaphores(void){
     BusyLOW=xSemaphoreCreateBinary();
 }
 int main(void) {
+    
     SetupHardware();
     CreateSemaphores();
     //create byte queues
     UART_Transmit_Queue = xQueueCreate(25, sizeof (unsigned char));
-    UART_Receive_Queue = xQueueCreate(20, sizeof (unsigned char));
+    UART_Receive_Queue = xQueueCreate(75, sizeof (unsigned char));
     //SPI_Queue = xQueueCreate(5, sizeof (unsigned char)); not used
     //size of tasks are not optimized, they just are their size to insure that they work.
     xTaskCreate(UART_task, "UART task", 100, NULL, 4, &UARTTask);
@@ -142,11 +144,20 @@ int main(void) {
     xTaskCreate(Epaper_Task,"Epaper task",100,NULL,1,&EpaperTask);
     //xTaskCreate(SPI_task, "SPI task", 50, NULL, 3, &SPITask); not used
     xTaskCreate(maintask, "Main task", 100, NULL, 2, NULL);
+    //for testing methods; run unit tests
+#if IsTesting ==1
+    testmethods();
+    while(1){
+        __NOP();
+    }
+#else
+    //has problems in simulator.
     vTaskStartScheduler();
     //should never be reached
     while(1){
         
     }
+#endif
     return (EXIT_SUCCESS);
 }
 

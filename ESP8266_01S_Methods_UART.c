@@ -9,6 +9,7 @@
 #include "Sleep.h"
 extern QueueHandle_t UART_Receive_Queue;
 extern QueueHandle_t SPI_Queue;
+#ifndef ATstrings
 //nothing should change for this
 #define ATString "AT\r\n"
 //disable echo
@@ -29,34 +30,69 @@ extern QueueHandle_t SPI_Queue;
 //AT response array.
 #define dummy "a"
 //expected response from AT\r\n
+#define ATErrorResponse "\r\nERROR\r\n"
 #define ATTestResponse "\r\nOK\r\n"
 #define ATCloseResponse "\r\nCLOSED\r\n\r\nOK\r\n"
+//only the beginning of the response is needed.  The other info is just server information we don't need.
+//meant for a quick comparison.
+#define ATStatusString "\r\nSTATUS:"
+#define ATConnectedToServerResponse "\r\nSTATUS:3\r\n"
+#define ATConnectedToWiFi "\r\nSTATUS:2\r\n"
+#define ATConnectedstrlen strlen(ATConnectedToServerResponse)
+//return obvious failure value that isn't used.
+#define FailedToGetStatus 0xFF
+#define convertcharnumtonum(charnum) charnum-48
+#endif
 //Expected response array.
-unsigned volatile char ATResponse[30] = {};
+#define ATResponseSize 75
+volatile unsigned char ATResponse[ATResponseSize] = {};
 extern SemaphoreHandle_t ESP_Image_Received;
 extern SemaphoreHandle_t Epaper_INIT_finished;
-#define ATResponseMaxLength 30
 void StartUARTtoSPITransfer(void);
-
+_Bool IsExpectedMessage(const char* ExpectedResponse){
+    for (unsigned char i=0;i<strlen(ExpectedResponse);i++){
+        if (ATResponse[i]!=*(ExpectedResponse+i)){
+            return 0;
+        }
+    }
+    return 1;
+}
+void ClearATResponse(void){
+    for (unsigned char i=0;i<ATResponseSize;i++){
+       ATResponse[i]=0; 
+    }
+}
+unsigned char GetConnectionStatus(void){
+    UART_Begin(strlen(ATCIPSTATUS),strlen(ATConnectedToServerResponse),ATResponse);
+    UART_sendstring(ATCIPSTATUS);
+    UART_Wait;
+    //default to this value.  If it fails it won't change.
+    unsigned char status=FailedToGetStatus;
+    _Bool IsStatusMessage=IsExpectedMessage(ATStatusString);
+    if (IsStatusMessage){
+        status=convertcharnumtonum(ATResponse[strlen(ATStatusString)]);
+    }
+    return status;
+}
 void disable_echo(void) {
-    //disable echo
-    UART_Begin(strlen(ATE0), 6);
+    //disable echo; discard response
+    UART_Begin(strlen(ATE0), 6,NULL);
     UART_sendstring(ATE0);
     UART_Wait;
 }
 //Get Epaper image for the display.
 void StartConnection(void){
-    UART_Begin(strlen(TCPSTART), 15);
+    UART_Begin(strlen(TCPSTART), 15,ATResponse);
     UART_sendstring(TCPSTART);
     UART_Wait;
 }
 void TCPSendstart_UART(void){
-    UART_Begin(strlen(TCPSENDSTART), 6);
+    UART_Begin(strlen(TCPSENDSTART), 6,NULL);
     UART_sendstring(TCPSENDSTART);
     UART_Wait;
 }
 void TCP_Close_Socket(void){
-    UART_Begin(strlen(CLOSETCPSOCKET), 14);
+    UART_Begin(strlen(CLOSETCPSOCKET), 14,ATResponse);
     UART_sendstring(CLOSETCPSOCKET);
     UART_Wait;
 }
