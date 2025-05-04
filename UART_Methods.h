@@ -10,6 +10,7 @@ void EnableUART(void);
 void UART_Begin(unsigned short TLength,unsigned short RLength,volatile unsigned char* Receiverarr);
 void UART_Enqueue_Transmit(unsigned char data);
 void UART_sendstring(const char*string);
+void UART_sendarray(unsigned char*arr);
 void UART_Write(unsigned char data);
 volatile unsigned char UART_Read(void);
 void DisableUART(void);

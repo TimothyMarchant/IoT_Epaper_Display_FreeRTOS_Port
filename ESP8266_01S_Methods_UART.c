@@ -43,6 +43,11 @@ extern QueueHandle_t SPI_Queue;
 #define FailedToGetStatus 0xFF
 #define convertcharnumtonum(charnum) charnum-48
 #endif
+#ifndef maxdigits_short
+#define maxdigits_short 5
+#endif
+#define zeroasciivalue 48
+#define ATSENDSTART_VAR_STARTPOS 11
 //Expected response array.
 #define ATResponseSize 75
 volatile unsigned char ATResponse[ATResponseSize] = {};
@@ -86,16 +91,45 @@ void StartConnection(void){
     UART_sendstring(TCPSTART);
     UART_Wait;
 }
+//call this before sending data.  Meant for single byte commands.
 void TCPSendstart_UART(void){
     UART_Begin(strlen(TCPSENDSTART), 6,NULL);
     UART_sendstring(TCPSENDSTART);
     UART_Wait;
+}
+void parseshort(unsigned char* digits,unsigned short number){
+    unsigned short temp=1;
+    for (unsigned char i=0;i<maxdigits_short;i++){
+        digits[maxdigits_short-i-1]=((number/temp)%10)+zeroasciivalue;
+        temp*=10;
+    }
+}
+void TCPSendstart_UART_Varying(unsigned short msglen){
+    //msglen must be greater than zero.
+    if (msglen==0){
+        return;
+    }
+    //we only have 5 digits
+    char digits[5]={0,0,0,0,0};
+    parseshort(digits,msglen);
+    unsigned char currentdigit=0;
+    char TCPSendStart_Varying[20]="AT+CIPSEND=";
+    for (unsigned char i=0;i<maxdigits_short;i++){
+        if (digits[i]!=0){
+            TCPSendStart_Varying[ATSENDSTART_VAR_STARTPOS+currentdigit]=digits[i];
+            currentdigit++;
+        }
+    }
+    //required \r\n at the end.
+    TCPSendStart_Varying[ATSENDSTART_VAR_STARTPOS+currentdigit]='\r';
+    TCPSendStart_Varying[ATSENDSTART_VAR_STARTPOS+currentdigit+1]='\n';
 }
 void TCP_Close_Socket(void){
     UART_Begin(strlen(CLOSETCPSOCKET), 14,ATResponse);
     UART_sendstring(CLOSETCPSOCKET);
     UART_Wait;
 }
+//Get image data from server application for displaying on screen.
 void GetImage(void) {
     //connect to server
     StartConnection();
@@ -108,4 +142,10 @@ void GetImage(void) {
     xSemaphoreGive(ESP_Image_Received);
     //close socket
     TCP_Close_Socket();
+}
+//meant for later
+//Get ID from a future database to determine what image to get.  The server will handle this.
+//Only called once.
+void GetID(void){
+    
 }

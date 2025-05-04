@@ -110,11 +110,16 @@ void UART_Enqueue_Transmit(unsigned char data) {
 }
 
 void UART_sendstring(const char*string) {
-    for (unsigned char i = 0; i < strlen(string); i++) {
+    for (unsigned short i = 0; i < strlen(string); i++) {
         UART_Enqueue_Transmit((unsigned char) *(string + i));
     }
 }
-//meant for SPI task
+//for nonconstant size strings (has few use cases)
+void UART_sendarray(unsigned char*arr){
+    for (unsigned short i = 0; i < strlen(arr); i++) {
+        UART_Enqueue_Transmit((unsigned char) *(arr + i));
+    }
+}
 void UART_Write(unsigned char data) {
     UART.SERCOM_DATA = data;
 }
@@ -131,7 +136,7 @@ void UART_Wait_For_End_Of_Transmission(void) {
     //Empty the response into the array from the start method or just discard the response.
     FlushReceiveQueue();
 }
-
+//remove contents of UART_Receive_Queue into either an array or just get rid of it altogether.
 void FlushReceiveQueue(void) {
     unsigned char i = 0;
     if (DoNeedToSaveResponse){
