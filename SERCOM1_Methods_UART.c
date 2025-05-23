@@ -21,7 +21,10 @@
 #define GCLKPERDefaultMask 0x40
 //enable specific interrupts.  These are the ones we want to activate normally
 #define defaultinterrupts 0x06 //RXC and TXC bits
+#define SERCOM1DRE 0x01
 #define enablebit 0x02
+//takes around one byte to transmit in 900 microseconds.
+#define ExpectedUARTByteTimeMS 1200
 unsigned char* datatoread;
 const unsigned char* transmissionpacket;
 volatile unsigned char * receiverarray=NULL;
@@ -114,6 +117,16 @@ void UART_sendstring(const char*string) {
         UART_Enqueue_Transmit((unsigned char) *(string + i));
     }
 }
+//meant for few use cases.  UART task should be used most of the time.
+void UART_sendstring_BLOCKINGWRITE(const char*string){
+    Disableinterrupt();
+    for (unsigned short i=0;i<strlen(string);i++){
+        while (!(UART.SERCOM_INTFLAG&SERCOM1DRE));
+        UART_Write(*(string+i));
+        while (!(UART.SERCOM_INTFLAG&SERCOM1DRE));
+    }
+    Enableinterrupt();
+}
 //for nonconstant size strings (has few use cases)
 void UART_sendarray(unsigned char*arr){
     for (unsigned short i = 0; i < strlen(arr); i++) {
@@ -121,7 +134,9 @@ void UART_sendarray(unsigned char*arr){
     }
 }
 void UART_Write(unsigned char data) {
+    while (!(UART.SERCOM_INTFLAG&SERCOM1DRE));
     UART.SERCOM_DATA = data;
+    while (!(UART.SERCOM_INTFLAG&SERCOM1DRE));
 }
 
 volatile unsigned char UART_Read(void) {

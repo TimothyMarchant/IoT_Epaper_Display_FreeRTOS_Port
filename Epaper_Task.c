@@ -15,7 +15,7 @@ void SetScreenMethod(volatile void (*Method)(void)){
     ScreenMethod=Method;
 }
 void Epaper_Task(void * pvParameters){
-    
+   
     while (1){
         vTaskSuspend(NULL);
         ScreenMethod();

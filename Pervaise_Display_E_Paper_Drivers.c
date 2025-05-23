@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <stdlib.h>
 #include "definitions.h"
@@ -151,7 +152,9 @@ void updatescreen(void) {
     sendcommand(DTM1REG);
     xSemaphoreGive(Epaper_INIT_finished);
     //wait at most 10 seconds for the image to be received.  if for some reason it's not received abort.
-    xSemaphoreTake(ESP_Image_Received,pdMS_TO_TICKS(30000));
+    if (xSemaphoreTake(ESP_Image_Received,pdMS_TO_TICKS(30000))==pdFALSE){
+        return;
+    }
     SPIWait;
     StartSPI_BLOCKING(CS);
     SendToDTM2REG();

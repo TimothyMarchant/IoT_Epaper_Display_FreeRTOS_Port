@@ -1,59 +1,28 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include "Parse_short.h"
 #include "definitions.h"
 #include "SPI_Methods.h"
 #include "GPIO.h"
 #include "UART_Methods.h"
 #include "Sleep.h"
+#include "ESP_Command_Strings.h"
 extern QueueHandle_t UART_Receive_Queue;
 extern QueueHandle_t SPI_Queue;
-#ifndef ATstrings
-//nothing should change for this
-#define ATString "AT\r\n"
-//disable echo
-#define ATE0 "ATE0\r\n"
-//sleep for 1 second default sleep string will be used later
-#define ESPSLEEP "AT+GSLP=1000\r\n"
-//These strings would be needed to connect to a network, but this will be done off this microcontroller for privacy (don't want to expose my network)
-//default WiFi mode; set to station mode
-//const char* const ATCWMODE_DEF="AT+CWMODE_DEF=1";
-//connect to this network with the correct SSID and password; for reference only
-//const char* const ATCWJAP_DEF+"AT+CWJAP_DEF=\"NAME\",\"PASSWORD\"";
-//get current status
-#define ATCIPSTATUS "AT+CIPSTATUS\r\n"
-//start the TCP connection
-#define TCPSTART "AT+CIPSTART=\"TCP\",\"IP\",7777\r\n" //7777 is not special or anything it's just the port number I arbitarly chose.
-#define TCPSENDSTART "AT+CIPSEND=1\r\n" //send this with the length of the message.
-#define CLOSETCPSOCKET "AT+CIPCLOSE\r\n" //make sure to close the socket
-//AT response array.
-#define dummy "a"
-//expected response from AT\r\n
-#define ATErrorResponse "\r\nERROR\r\n"
-#define ATTestResponse "\r\nOK\r\n"
-#define ATCloseResponse "\r\nCLOSED\r\n\r\nOK\r\n"
-//only the beginning of the response is needed.  The other info is just server information we don't need.
-//meant for a quick comparison.
-#define ATStatusString "\r\nSTATUS:"
-#define ATConnectedToServerResponse "\r\nSTATUS:3\r\n"
-#define ATConnectedToWiFi "\r\nSTATUS:2\r\n"
-#define ATConnectedstrlen strlen(ATConnectedToServerResponse)
-//return obvious failure value that isn't used.
-#define FailedToGetStatus 0xFF
-#define convertcharnumtonum(charnum) charnum-48
-#endif
 #ifndef maxdigits_short
 #define maxdigits_short 5
 #endif
+#ifndef zeroasciivalue
 #define zeroasciivalue 48
+#endif
 #define ATSENDSTART_VAR_STARTPOS 11
 //Expected response array.
 #define ATResponseSize 75
 volatile unsigned char ATResponse[ATResponseSize] = {};
 extern SemaphoreHandle_t ESP_Image_Received;
 extern SemaphoreHandle_t Epaper_INIT_finished;
-void StartUARTtoSPITransfer(void);
+void SetID(void);
 _Bool IsExpectedMessage(const char* ExpectedResponse){
     for (unsigned char i=0;i<strlen(ExpectedResponse);i++){
         if (ATResponse[i]!=*(ExpectedResponse+i)){
@@ -91,20 +60,16 @@ void StartConnection(void){
     UART_sendstring(TCPSTART);
     UART_Wait;
 }
-//call this before sending data.  Meant for single byte commands.
-void TCPSendstart_UART(void){
-    UART_Begin(strlen(TCPSENDSTART), 6,NULL);
-    UART_sendstring(TCPSENDSTART);
+//call this before sending data.  Tells ESP how much data to send.
+void TCPSendstart_UART(const char* TCPSENDSTARTLEN){
+    //expected response is \r\nOK\r\n>.
+    UART_Begin(strlen(TCPSENDSTARTLEN), 7,NULL);
+    UART_sendstring(TCPSENDSTARTLEN);
     UART_Wait;
+    ClearATResponse();
 }
-void parseshort(unsigned char* digits,unsigned short number){
-    unsigned short temp=1;
-    for (unsigned char i=0;i<maxdigits_short;i++){
-        digits[maxdigits_short-i-1]=((number/temp)%10)+zeroasciivalue;
-        temp*=10;
-    }
-}
-void TCPSendstart_UART_Varying(unsigned short msglen){
+//for strings of varying length.
+void TCPSendStart_UART_Varying(unsigned short msglen){
     //msglen must be greater than zero.
     if (msglen==0){
         return;
@@ -113,7 +78,7 @@ void TCPSendstart_UART_Varying(unsigned short msglen){
     char digits[5]={0,0,0,0,0};
     parseshort(digits,msglen);
     unsigned char currentdigit=0;
-    char TCPSendStart_Varying[20]="AT+CIPSEND=";
+    unsigned char TCPSendStart_Varying[20]="AT+CIPSEND=";
     for (unsigned char i=0;i<maxdigits_short;i++){
         if (digits[i]!=0){
             TCPSendStart_Varying[ATSENDSTART_VAR_STARTPOS+currentdigit]=digits[i];
@@ -123,29 +88,108 @@ void TCPSendstart_UART_Varying(unsigned short msglen){
     //required \r\n at the end.
     TCPSendStart_Varying[ATSENDSTART_VAR_STARTPOS+currentdigit]='\r';
     TCPSendStart_Varying[ATSENDSTART_VAR_STARTPOS+currentdigit+1]='\n';
+    UART_Begin(ATSENDSTART_VAR_STARTPOS+currentdigit+2, 6,NULL);
+    UART_sendstring(TCPSendStart_Varying);
+    UART_Wait;
+}
+//expectedresponselength must be less than or equal to 75.
+//messages should be saved as macros and have a specific use case in mind.  
+//In other words they are not dynamic.  They are defined when the program is compiled.
+void SendMessage_UART(const char* Message,const unsigned char expectedresponselength){
+    //do not allow responses greater than 75 or for empty messages
+    if (expectedresponselength>75||strlen(Message)<=0){
+        return;
+    }
+    TCPSendstart_UART(Message);
+    UART_Begin(strlen(Message),expectedresponselength,ATResponse);
+    UART_sendstring(Message);
+    UART_Wait;
 }
 void TCP_Close_Socket(void){
     UART_Begin(strlen(CLOSETCPSOCKET), 14,ATResponse);
     UART_sendstring(CLOSETCPSOCKET);
     UART_Wait;
 }
+void SendQuitString(void){
+    TCPSendstart_UART(QuitSENDSTART);
+    
+    UART_Begin(strlen(Quit_string),QuitResponselength+RECVxBytesStringResponse,ATResponse);
+    UART_sendstring(Quit_string);
+    UART_Wait;
+}
+#ifndef TCPSegmentImageInfo
+#define TCPSegmentImageInfo
+#define TCPSegmentLength 1000
+#define TCPSegmentnum 5
+#define ImageUARTPacketLength RECVxBytesStringResponse+ImageIPDSTRINGlength+TCPSegmentLength
+#endif
+unsigned char TransmitImageSPI(void){
+    unsigned char data=0;
+    for (unsigned char i=0;i<TCPSegmentnum;i++){
+        TCPSendstart_UART(ACKSENDSTART);
+        UART_Begin(strlen(ACK),ImageUARTPacketLength,NULL);
+        UART_sendstring(ACK);
+        while (data!=':'){
+            if (xQueueReceive(UART_Receive_Queue,&data,pdMS_TO_TICKS(1000))==pdFALSE){
+                return 0xff;
+            }
+        }
+        for (unsigned short j=0;j<TCPSegmentLength;j++){
+            if (xQueueReceive(UART_Receive_Queue,&data,pdMS_TO_TICKS(1000))==pdFALSE){
+                return 0xf0;
+            }
+        SPI_Write_BLOCKING(data);
+        }
+        UART_Wait;
+    }
+    
+    return 1;
+}
 //Get image data from server application for displaying on screen.
 void GetImage(void) {
+    //This is here until I can find a better spot for it.
+    SetID();
     //connect to server
     StartConnection();
-    //select message length.  In this case it will be 1
-    TCPSendstart_UART();
-    //transfer UART data to SPI
-    xSemaphoreTake(Epaper_INIT_finished,pdMS_TO_TICKS(30000));
-    StartUARTtoSPITransfer();
+    //select message length.  We are trying to get an image.
+    TCPSendstart_UART(GetImageSENDSTART);
+    //the expected response is IDFOUND as the SetID should of been called before this.
+    UART_Begin(strlen(GetImage_string),strlen(IDFOUND)+RECVxBytesLENGTH,ATResponse);
+    UART_sendstring(GetImage_string);
     UART_Wait;
+
+    //wait for Epaper initialization.  If it doesn't initialize close the socket.
+    if (xSemaphoreTake(Epaper_INIT_finished,pdMS_TO_TICKS(1000))==pdFALSE){
+        TCP_Close_Socket();
+        return;
+    }
+    
+    //transfer UART data to SPI
+    if (TransmitImageSPI()!=1){
+        return;
+    }
     xSemaphoreGive(ESP_Image_Received);
     //close socket
-    TCP_Close_Socket();
+    ClearATResponse();
+    SendQuitString();
 }
 //meant for later
 //Get ID from a future database to determine what image to get.  The server will handle this.
 //Only called once.
 void GetID(void){
     
+}
+//called on startup.
+void SetID(void){
+    disable_echo();
+    //connect to server
+    StartConnection();
+    //select message length.  We are trying to get an image.
+    TCPSendstart_UART(SetIDSENDSTART);
+    //the expected response is IDFOUND as the SetID should of been called before this.
+    UART_Begin(strlen(SetID_string),IDRESPONSELENGTH+RECVxBytesLENGTH,ATResponse);
+    UART_sendstring(SetID_string);
+    UART_Wait;
+    //close socket
+    SendQuitString();
 }
