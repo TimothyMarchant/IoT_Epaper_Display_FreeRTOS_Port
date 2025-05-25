@@ -15,37 +15,10 @@
 #include "EPaper_Methods.h"
 #include "Task_Names.h"
 #include "ESP_Methods.h"
+#include "ESP_Command_Strings.h"
 //meant to determine if we need to compile code in this file.
 #ifndef IsTesting
 #define IsTesting 1
-#endif
-#ifndef ATstrings
-//nothing should change for this
-#define ATString "AT\r\n"
-//disable echo
-#define ATE0 "ATE0\r\n"
-//sleep for 1 second default sleep string will be used later
-#define ESPSLEEP "AT+GSLP=1000\r\n"
-//These strings would be needed to connect to a network, but this will be done off this microcontroller for privacy (don't want to expose my network)
-//default WiFi mode; set to station mode
-//const char* const ATCWMODE_DEF="AT+CWMODE_DEF=1";
-//connect to this network with the correct SSID and password; for reference only
-//const char* const ATCWJAP_DEF+"AT+CWJAP_DEF=\"NAME\",\"PASSWORD\"";
-//get current status
-#define ATCIPSTATUS "AT+CIPSTATUS\r\n"
-//start the TCP connection
-#define TCPSTART "AT+CIPSTART=\"TCP\",\"IP\",7777\r\n" //7777 is not special or anything it's just the port number I arbitarly chose.
-#define TCPSENDSTART "AT+CIPSEND=1\r\n" //send this with the length of the message.
-#define CLOSETCPSOCKET "AT+CIPCLOSE\r\n" //make sure to close the socket
-//AT response array.
-#define dummy "a"
-//expected response from AT\r\n
-#define ATErrorResponse "\r\nERROR\r\n"
-#define ATTestResponse "\r\nOK\r\n"
-#define ATCloseResponse "\r\nCLOSED\r\n\r\nOK\r\n"
-//only the beginning of the response is needed.  The other info is just server information we don't need.
-#define ATConnectedToServerResponse "\r\nSTATUS:3\r\n"
-#define ATConnectedToWiFi "\r\nSTATUS:2\r\n"
 #endif
 //Expected response array.
 #ifndef ATResponseSize

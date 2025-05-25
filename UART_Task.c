@@ -8,6 +8,7 @@
 #include <semphr.h>
 #include "UART_Methods.h"
 #include "SPI_Methods.h"
+#include "ESP_Command_Strings.h"
 #define RXCaller 0x04
 #define TXCaller 0x02
 extern QueueHandle_t UART_Transmit_Queue;
@@ -50,44 +51,21 @@ void TransmitSequence(void) {
         //UART write
         UART_Write(UARTdata);
         //wait for transmission to finish
-        xSemaphoreTake(TXready, portMAX_DELAY);
+        xSemaphoreTake(TXready, pdMS_TO_TICKS(100));
     }
 }
 void ReceiveSequence(void) {
     for (unsigned short i = 0; i < ReceiveLength; i++) {
         //wait for data on RX line
-        xSemaphoreTake(RXready, portMAX_DELAY);
+        if (xSemaphoreTake(RXready, pdMS_TO_TICKS(100))==pdFALSE){
+            return;
+        }
         //read data
 
         //put data in a queue to be read elsewhere.
         xQueueSendToBack(UART_Receive_Queue, (unsigned char *) &UARTdata, portMAX_DELAY);
     }
 }
-
-void StartUARTtoSPITransfer(void) {
-    transferingtoSPI = 1;
-    vTaskResume(UARTTask);
-    Enableinterrupt();
-}
-const unsigned short TCPLengths[4] = {1460, 1460, 1460, 620};
-
-void ReceiveIntoSPI(void) {
-    UART_Write('a');
-    xSemaphoreTake(TXready, portMAX_DELAY);
-    for (unsigned char j = 0; j < 4; j++) {
-        while (UARTdata != ':') {
-            xSemaphoreTake(RXready, portMAX_DELAY);
-        }
-        for (unsigned short i = 0; i < TCPLengths[j]; i++) {
-            //wait for data on RX line
-            xSemaphoreTake(RXready, portMAX_DELAY);
-            //read data; done in ISR
-            SPI_Write_BLOCKING(UARTdata);
-        }
-    }
-    transferingtoSPI = 0;
-}
-
 void UART_task(void * pvParameters) {
 
 
@@ -97,16 +75,12 @@ void UART_task(void * pvParameters) {
         TransmitLength = 0;
         ReceiveLength = 0;
         vTaskSuspend(NULL);
-        if (transferingtoSPI) {
-            ReceiveIntoSPI();
-        } else {
             if (TransmitLength > 0) {
                 TransmitSequence();
             }
             if (ReceiveLength > 0) {
                 ReceiveSequence();
             }
-        }
         xSemaphoreGive(UARTFinished);
     }
 }

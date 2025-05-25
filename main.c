@@ -97,6 +97,7 @@ void SetupHardware(void) {
 }
 //used for waking up other tasks.
 void maintask(void * pvParameters) {
+    //SetID();
     Set_EIC_INT(EIC0|EIC1);
     while (1) {
         //suspend until further notice.
@@ -111,7 +112,7 @@ void maintask(void * pvParameters) {
             vTaskResume(ESPTask);
         }
         //suspend until Epaper transfer is complete OR at least 30 seconds has passed.
-        xSemaphoreTake(Epaper_Finished,portMAX_DELAY);
+        xSemaphoreTake(Epaper_Finished,pdMS_TO_TICKS(50000));
         ClearBools();
         Set_EIC_INT(EIC0|EIC1);
         Clear_EIC_INT(EIC2);
