@@ -5,7 +5,7 @@ void ClearATResponse(void);
 void SetID(void);
 unsigned char GetConnectionStatus(void);
 void disable_echo(void);
-void StartConnection(void);
+unsigned char StartConnection(void);
 void TCPSendstart_UART(const char* TCPSENDSTARTLEN);
 void TCP_Close_Socket(void);
 void GetImage(void);

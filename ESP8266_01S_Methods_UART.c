@@ -55,10 +55,11 @@ void disable_echo(void) {
     UART_Wait;
 }
 //Get Epaper image for the display.
-void StartConnection(void){
+unsigned char StartConnection(void){
     UART_Begin(strlen(TCPSTART), 15,ATResponse);
     UART_sendstring(TCPSTART);
     UART_Wait;
+    return 1;
 }
 //call this before sending data.  Tells ESP how much data to send.
 void TCPSendstart_UART(const char* TCPSENDSTARTLEN){

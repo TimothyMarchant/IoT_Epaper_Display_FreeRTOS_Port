@@ -97,7 +97,6 @@ void SetupHardware(void) {
 }
 //used for waking up other tasks.
 void maintask(void * pvParameters) {
-    //SetID();
     Set_EIC_INT(EIC0|EIC1);
     while (1) {
         //suspend until further notice.
@@ -112,7 +111,7 @@ void maintask(void * pvParameters) {
             vTaskResume(ESPTask);
         }
         //suspend until Epaper transfer is complete OR at least 30 seconds has passed.
-        xSemaphoreTake(Epaper_Finished,pdMS_TO_TICKS(50000));
+        xSemaphoreTake(Epaper_Finished,pdMS_TO_TICKS(30000));
         ClearBools();
         Set_EIC_INT(EIC0|EIC1);
         Clear_EIC_INT(EIC2);
@@ -141,8 +140,8 @@ int main(void) {
     //SPI_Queue = xQueueCreate(5, sizeof (unsigned char)); not used
     //size of tasks are not optimized, they just are their size to insure that they work.
     xTaskCreate(UART_task, "UART task", 100, NULL, 4, &UARTTask);
-    xTaskCreate(ESP_Task,"ESP task",100,NULL,1,&ESPTask);
-    xTaskCreate(Epaper_Task,"Epaper task",100,NULL,1,&EpaperTask);
+    xTaskCreate(ESP_Task,"ESP task",100,NULL,2,&ESPTask);
+    xTaskCreate(Epaper_Task,"Epaper task",100,NULL,2,&EpaperTask);
     //xTaskCreate(SPI_task, "SPI task", 50, NULL, 3, &SPITask); not used
     xTaskCreate(maintask, "Main task", 100, NULL, 2, NULL);
     //for testing methods; run unit tests

@@ -11,7 +11,6 @@
 #include "EPaper_Methods.h"
 volatile void (* ScreenMethod)(void);
 void SetScreenMethod(volatile void (*Method)(void)){
-    
     ScreenMethod=Method;
 }
 void Epaper_Task(void * pvParameters){

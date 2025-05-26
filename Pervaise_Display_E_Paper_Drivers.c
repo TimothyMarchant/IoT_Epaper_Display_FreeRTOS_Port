@@ -151,8 +151,11 @@ void updatescreen(void) {
     StartSPI_BLOCKING(CS);
     sendcommand(DTM1REG);
     xSemaphoreGive(Epaper_INIT_finished);
+    //TickType_t testtime=pdMS_TO_TICKS(1000);
     //wait at most 10 seconds for the image to be received.  if for some reason it's not received abort.
-    if (xSemaphoreTake(ESP_Image_Received,pdMS_TO_TICKS(30000))==pdFALSE){
+    if (xSemaphoreTake(ESP_Image_Received,pdMS_TO_TICKS(10000))==pdFALSE){
+        SPIWait;
+        GiveEpaperFinished();
         return;
     }
     SPIWait;

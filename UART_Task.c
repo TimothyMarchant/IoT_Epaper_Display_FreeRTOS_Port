@@ -47,11 +47,13 @@ void SetPacketLengths(unsigned short TXlength, unsigned short RXlength) {
 //transmit sequence similiar to SPI_task.
 void TransmitSequence(void) {
     for (unsigned short i = 0; i < TransmitLength; i++) {
-        xQueueReceive(UART_Transmit_Queue, (unsigned char *) &UARTdata, portMAX_DELAY);
+        xQueueReceive(UART_Transmit_Queue, (unsigned char *) &UARTdata, pdMS_TO_TICKS(1000));
         //UART write
         UART_Write(UARTdata);
         //wait for transmission to finish
-        xSemaphoreTake(TXready, pdMS_TO_TICKS(100));
+        if (xSemaphoreTake(TXready, pdMS_TO_TICKS(100))==pdFALSE){
+            return;
+        }
     }
 }
 void ReceiveSequence(void) {
@@ -63,7 +65,7 @@ void ReceiveSequence(void) {
         //read data
 
         //put data in a queue to be read elsewhere.
-        xQueueSendToBack(UART_Receive_Queue, (unsigned char *) &UARTdata, portMAX_DELAY);
+        xQueueSendToBack(UART_Receive_Queue, (unsigned char *) &UARTdata, pdMS_TO_TICKS(1000));
     }
 }
 void UART_task(void * pvParameters) {

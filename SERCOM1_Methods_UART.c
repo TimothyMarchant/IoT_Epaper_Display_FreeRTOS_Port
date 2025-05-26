@@ -24,7 +24,10 @@
 #define SERCOM1DRE 0x01
 #define enablebit 0x02
 //takes around one byte to transmit in 900 microseconds.
-#define ExpectedUARTByteTimeMS 1200
+#define ExpectedUARTByteTimeMS 2
+#define GetExpectedUARTTransmissionTime(ReceiveLength,TransmitLength) (ExpectedUARTByteTimeMS*ReceiveLength*TransmitLength)
+//time in ms default is 10000ms or 10 seconds
+unsigned int UART_CompleteTransmission_Timeout=10000;
 unsigned char* datatoread;
 const unsigned char* transmissionpacket;
 volatile unsigned char * receiverarray=NULL;
@@ -94,6 +97,7 @@ void Disableinterrupt(void) {
 }
 
 void UART_Begin(unsigned short TLength, unsigned short RLength,volatile unsigned char* Receiverarr) {
+    UART_CompleteTransmission_Timeout=GetExpectedUARTTransmissionTime(TLength,RLength);
     SetPacketLengths(TLength, RLength);
     receiverarray=Receiverarr;
     //whether or not we want to save the response or not.  The Response may not be useful and we can throw it away.
@@ -145,8 +149,9 @@ volatile unsigned char UART_Read(void) {
 }
 
 void UART_Wait_For_End_Of_Transmission(void) {
-    //wait for UART to be finished
-    xSemaphoreTake(UARTFinished, portMAX_DELAY);
+    //wait for UART to be finished or at least the timeout time.  It should only timeout on receiving due to some sort of error.
+    //we should still take all the contents we did receive and read them.
+    xSemaphoreTake(UARTFinished, pdMS_TO_TICKS(UART_CompleteTransmission_Timeout));
     Disableinterrupt();
     //Empty the response into the array from the start method or just discard the response.
     FlushReceiveQueue();
