@@ -52,6 +52,8 @@
 #endif
 #ifndef ServerResponses
 #define ServerResponses
+//These two are for a specific string that the ESP sends after getting some amount of data that has been sent to it.
+//We don't care about the actual response just the length.  The one x represents a single digit number.
 #define RECVxBytesStringResponse "\r\nRecv x bytes\r\n\r\nSEND OK\r\n\r\n"
 #define RECVxBytesLENGTH strlen(RECVxBytesStringResponse)
 //response length for getting the ID.
