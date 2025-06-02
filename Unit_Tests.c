@@ -16,6 +16,7 @@
 #include "Task_Names.h"
 #include "ESP_Methods.h"
 #include "ESP_Command_Strings.h"
+#include "NVM_Controller.h"
 //meant to determine if we need to compile code in this file.
 #ifndef IsTesting
 #define IsTesting 1
@@ -35,6 +36,7 @@ extern volatile unsigned char * receiverarray;
 //only compile if we are actively testing.
 #if IsTesting == 1
 BaseType_t IsSuccessful=1;
+void TestNVMCTRL(void);
 void InsertstringintoResponse(const char* teststring){
     for (unsigned int i=0;i<strlen(teststring);i++){
         ATResponse[i]=*(teststring+i);
@@ -78,7 +80,17 @@ void TestEpaper(void){
     
 }
 void testmethods(void){
-    UnitTest_GetConnectionStatus();
-    UnitTest_FlushReceiveQueue();
+    TestNVMCTRL();
+}
+void TestNVMCTRL(void){
+    unsigned char teststring[64]="TESTSTRING";
+    unsigned int testint=0;
+    unsigned char ReadString[64];
+    WritePageTo_DATAFLASH(teststring,0);
+    WritePageTo_DATAFLASH(teststring,1);
+    ReadPageFrom_DATAFLASH(ReadString,0);
+    ReadStringFrom_DATAFLASH(ReadString,10,0);
+    ReadIntFrom_DATAFLASH(&testint,0x04);
+    __NOP();
 }
 #endif
