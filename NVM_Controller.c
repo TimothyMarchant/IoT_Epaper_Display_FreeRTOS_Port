@@ -86,3 +86,13 @@ void ReadStringFrom_DATAFLASH(unsigned char* Readbuffer,unsigned char stringleng
 void ReadIntFrom_DATAFLASH(unsigned int* data,unsigned int offset){
     *data=*((unsigned int*) (DATA_FLASH_START_ADDRESS+(offset)));
 }
+//erase page.
+void ErasePageFrom_DATAFLASH(unsigned short pagenum){
+    Add_REG=DATA_FLASH_BIT;
+    Add_REG|=(64*pagenum)+DATA_FLASH_START_ADDRESS;
+    ERASECMD;
+}
+//blocking loop.  Once HIGH can leave loop.  Needs to be called by application between writes.
+void BLOCKING_IsNVM_Busy(void){
+    while(!(NVM_Status_READY));
+}
